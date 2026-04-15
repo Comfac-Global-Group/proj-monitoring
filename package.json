@@ -1,0 +1,21 @@
+{
+  "name": "proj-monitoring",
+  "version": "0.1.0",
+  "description": "Plant Operations Meeting Monitor (POMM) - Lightweight project monitoring PWA",
+  "type": "module",
+  "scripts": {
+    "dev": "npx live-server --port=8080 --no-browser",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "pwa",
+    "project-management",
+    "plant-operations",
+    "offline-first"
+  ],
+  "author": "Comfac Global Group R&D",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
