@@ -2,7 +2,8 @@
   "name": "Plant Operations Meeting Monitor",
   "short_name": "POMM",
   "description": "Lightweight project monitoring tool for plant operations meetings",
-  "start_url": "/",
+  "start_url": "/proj-monitoring/",
+  "scope": "/proj-monitoring/",
   "display": "standalone",
   "theme_color": "#4361ee",
   "background_color": "#ffffff",
@@ -18,13 +19,13 @@
       "name": "Add New Project",
       "short_name": "New Project",
       "description": "Create a new project",
-      "url": "/?new=true"
+      "url": "/proj-monitoring/?new=true"
     },
     {
       "name": "View Open Projects",
       "short_name": "Open",
       "description": "View all open projects",
-      "url": "/?filter=open"
+      "url": "/proj-monitoring/?filter=open"
     }
   ]
 }

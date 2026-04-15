@@ -19,11 +19,13 @@
 
 | ID | datetime | Status | Issue | Notes |
 |----|----------|--------|-------|-------|
+| Q-025 | 260415-120000 | CLOSED | `manifest.json` `start_url: "/"` breaks PWA install on GitHub Pages subpath | **Fixed 260415**: changed to `/proj-monitoring/`, added `scope`, fixed shortcut URLs. |
 | Q-001 | 260415-120000 | OPEN | DeepSeek tends to produce visually poor UIs by default | Must include explicit UI instructions in FRD. Reference a clean app (Linear, Notion lite). Do not accept default form styling. |
 | Q-002 | 260415-120000 | OPEN | Google Drive OAuth in a static PWA requires careful CORS and token handling | Use `gapi` JS client. Test on actual low-spec PC. Token must be stored in `localStorage` securely. |
 | Q-003 | 260415-120000 | OPEN | localStorage has ~5MB limit — large project histories may overflow | Implement a trim/archive strategy. Warn user when storage > 4MB. |
 | Q-004 | 260415-120000 | OPEN | WebDAV (Nextcloud/Seafile) Basic Auth via browser fetch may be blocked by CORS on some servers | Must test against actual Nextcloud/Seafile instance. Document workaround (proxy or CORS headers on server). |
 | Q-005 | 260415-120000 | OPEN | PWA service worker caching stale app shell after updates | Implement cache-busting strategy with version hash in service worker. Show "New version available — reload" banner. |
+| Q-026 | 260415-120000 | OPEN | License mismatch: `package.json` declares MIT but `LICENSE` file is GNU GPL v3 | Decide which applies and update the other. README also says MIT. |
 
 ---
 
@@ -37,7 +39,7 @@
 | Q-009 | 260415-120000 | OPEN | File attachments in Notes: local file upload stores base64 in JSON — large files will bloat the JSON | For MVP: store filename + file as base64 only if < 1MB. Warn user for larger files. Cloud sync path is the real solution (post-MVP). |
 | Q-010 | 260415-120000 | OPEN | Action column width is user-adjustable — must persist per session | Save column widths to `localStorage` under `settings.columnWidths`. |
 | Q-011 | 260415-120000 | OPEN | Phone mode vs Desktop mode: toggling mid-session must not lose unsaved edits | Autosave on every change (debounced 500ms). Toggle is purely a layout switch. |
-| Q-012 | 260415-120000 | OPEN | Version snapshot restore: no confirmation dialog — user may accidentally overwrite current state | Add "Are you sure? Current unsaved changes will be lost." modal before restore. |
+| Q-012 | 260415-120000 | CLOSED | Version snapshot restore: no confirmation dialog — user may accidentally overwrite current state | **Implemented**: `confirm()` dialog exists in app.js. |
 
 ---
 
@@ -69,7 +71,10 @@
 
 ## Closed Issues
 
-_None yet._
+| ID | datetime | Resolved | Issue | Resolution |
+|----|----------|----------|-------|------------|
+| Q-025 | 260415-120000 | 260415 | `manifest.json` `start_url: "/"` breaks PWA on GitHub Pages | Fixed: `/proj-monitoring/`, `scope`, shortcut URLs updated |
+| Q-012 | 260415-120000 | 260415 | Version restore confirm dialog missing | Implemented via `confirm()` in app.js |
 
 ---
 

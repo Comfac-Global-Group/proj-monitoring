@@ -27,7 +27,7 @@ A lightweight, portable, PWA-capable project monitoring tool that replaces the G
    ```bash
    npx live-server --port=8080
    ```
-   Or open `index.html` directly in a browser.
+   > Note: ES6 modules require a server — opening `index.html` directly as a `file://` URL will fail with CORS errors.
 
 3. Login with default credentials:
    - **Editor**: `admin` / `admin`
@@ -45,6 +45,7 @@ A lightweight, portable, PWA-capable project monitoring tool that replaces the G
 - `frd.md` - Functional Requirements Document
 - `roadmap.md` - Post-MVP feature roadmap
 - `qa.md` - QA issues and backlog
+- `repoanalysis.md` - AI-optimized codebase reference
 
 ## Data Model
 
@@ -72,7 +73,10 @@ Projects contain actions, which can have comments. All timestamps use `yymmdd-hh
 
 The app is a static PWA. Deploy to any web server (Nginx, Apache, GitHub Pages, etc.).
 
-For HTTPS deployment (required for PWA installation):
+**GitHub Pages (active):**
+`https://comfac-global-group.github.io/proj-monitoring/`
+
+For self-hosted HTTPS (required for PWA installation):
 - Use Let's Encrypt with Nginx Proxy Manager
 - Serve from `bp.comfac-it.com` or similar domain
 
@@ -85,4 +89,4 @@ For HTTPS deployment (required for PWA installation):
 
 ## License
 
-MIT License - See LICENSE file for details.
+See `LICENSE` file. Note: `package.json` currently declares MIT but the `LICENSE` file contains GNU GPL v3 — this mismatch needs to be resolved (tracked as Q-026).
