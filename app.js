@@ -8,6 +8,8 @@ let currentUser = null;
 let currentProjectId = null;
 let currentActionId = null;
 let isPhoneLayout = false;
+const collapsedProjects = new Set();
+let commentContext = { projectId: null, actionId: null };
 
 // ------------------------------------------------------------
 // DOM Elements
@@ -37,6 +39,12 @@ const actionTextInput = document.getElementById('action-text');
 const actionDueDateInput = document.getElementById('action-due-date');
 const actionCancelBtn = document.getElementById('action-cancel');
 const overlay = document.getElementById('overlay');
+const commentModal = document.getElementById('comment-modal');
+const commentModalTitle = document.getElementById('comment-modal-title');
+const commentsList = document.getElementById('comments-list');
+const commentForm = document.getElementById('comment-form');
+const commentTextInput = document.getElementById('comment-text');
+const commentCloseBtn = document.getElementById('comment-close');
 const exportBtn = document.getElementById('export-btn');
 const importBtn = document.getElementById('import-btn');
 const importFileInput = document.getElementById('import-file');
@@ -205,20 +213,20 @@ function renderProjects() {
     
     projects.forEach(project => {
         const isClosed = project.status === 'closed';
-        const statusClass = isClosed ? 'closed' : 'open';
+        const isCollapsed = collapsedProjects.has(project.id);
         const actionsHtml = renderActions(project);
-        
+
         html += `
             <div class="project-card ${isClosed ? 'closed' : ''}" data-project-id="${project.id}">
                 <div class="project-header">
                     <div class="project-title-wrapper">
-                        <button class="project-toggle" data-action="toggle-project">
-                            ${isClosed ? '▶' : '▼'}
+                        <button class="project-toggle" data-action="toggle-project" data-project-id="${project.id}">
+                            ${isCollapsed ? '▶' : '▼'}
                         </button>
                         <h3 class="project-title">${escapeHtml(project.title)}</h3>
                     </div>
                     <div class="project-status-toggle">
-                        <span class="status-badge ${statusClass}">${project.status.toUpperCase()}</span>
+                        <span class="status-badge ${isClosed ? 'closed' : 'open'}">${project.status.toUpperCase()}</span>
                         ${currentUser?.role === 'editor' ? `
                             <button class="btn btn-small" data-action="toggle-status" data-project-id="${project.id}">
                                 ${isClosed ? 'Reopen' : 'Close'}
@@ -226,42 +234,44 @@ function renderProjects() {
                         ` : ''}
                     </div>
                 </div>
-                
-                <div class="project-details">
-                    ${escapeHtml(project.details)}
-                </div>
-                
-                ${project.notes ? `
-                    <div class="project-notes">
-                        <h4>Notes</h4>
-                        <div class="project-notes-content">${escapeHtml(project.notes)}</div>
-                        ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
-                            <button class="action-comments" data-action="add-notes-comment" data-project-id="${project.id}">
-                                💬 Comment
+
+                <div class="project-body ${isCollapsed ? 'hidden' : ''}">
+                    <div class="project-details">
+                        ${escapeHtml(project.details)}
+                    </div>
+
+                    ${project.notes ? `
+                        <div class="project-notes">
+                            <h4>Notes</h4>
+                            <div class="project-notes-content">${escapeHtml(project.notes)}</div>
+                            ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
+                                <button class="action-comments" data-action="add-notes-comment" data-project-id="${project.id}">
+                                    💬 Comment${project.notesComments?.length ? ` (${project.notesComments.length})` : ''}
+                                </button>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+
+                    <div class="actions-list">
+                        ${actionsHtml}
+                        ${currentUser?.role === 'editor' ? `
+                            <button class="btn btn-secondary add-action-btn" data-action="add-action" data-project-id="${project.id}">
+                                + Add Action
                             </button>
                         ` : ''}
                     </div>
-                ` : ''}
-                
-                <div class="actions-list">
-                    ${actionsHtml}
+
                     ${currentUser?.role === 'editor' ? `
-                        <button class="btn btn-secondary add-action-btn" data-action="add-action" data-project-id="${project.id}">
-                            + Add Action
-                        </button>
+                        <div class="project-actions" style="margin-top: 16px; display: flex; gap: 8px;">
+                            <button class="btn btn-small" data-action="edit-project" data-project-id="${project.id}">
+                                Edit
+                            </button>
+                            <button class="btn btn-small" data-action="delete-project" data-project-id="${project.id}">
+                                Delete
+                            </button>
+                        </div>
                     ` : ''}
                 </div>
-                
-                ${currentUser?.role === 'editor' ? `
-                    <div class="project-actions" style="margin-top: 16px; display: flex; gap: 8px;">
-                        <button class="btn btn-small" data-action="edit-project" data-project-id="${project.id}">
-                            Edit
-                        </button>
-                        <button class="btn btn-small" data-action="delete-project" data-project-id="${project.id}">
-                            Delete
-                        </button>
-                    </div>
-                ` : ''}
             </div>
         `;
     });
@@ -276,20 +286,20 @@ function renderActions(project) {
     
     let html = '';
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
     project.actions.forEach(action => {
-        const dueDate = action.due_date ? new Date(action.due_date) : null;
         let dueDateClass = '';
         let dueDateText = '';
-        
-        if (dueDate) {
+
+        if (action.due_date) {
             dueDateText = formatDisplayDate(action.due_date);
-            if (dueDate < today) {
+            if (action.due_date <= todayStr) {
+                // On or past due date → overdue
                 dueDateClass = 'overdue';
             } else {
-                const daysDiff = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-                if (daysDiff <= 3) {
+                const daysLeft = Math.ceil((new Date(action.due_date) - today) / (1000 * 60 * 60 * 24));
+                if (daysLeft <= 3) {
                     dueDateClass = 'due-soon';
                 }
             }
@@ -557,7 +567,12 @@ function handleClick(event) {
             renderProjects();
             break;
         case 'toggle-project':
-            // For MVP, we can implement expand/collapse later
+            if (collapsedProjects.has(projectId)) {
+                collapsedProjects.delete(projectId);
+            } else {
+                collapsedProjects.add(projectId);
+            }
+            renderProjects();
             break;
         
         // Action actions
@@ -576,8 +591,10 @@ function handleClick(event) {
         
         // Comment actions
         case 'add-notes-comment':
+            openCommentModal(projectId, null);
+            break;
         case 'view-comments':
-            alert('Comment functionality coming soon!');
+            openCommentModal(projectId, actionId);
             break;
         
         // Settings actions
@@ -595,6 +612,78 @@ function handleClick(event) {
             }
             break;
     }
+}
+
+// ------------------------------------------------------------
+// Comments
+// ------------------------------------------------------------
+function openCommentModal(projectId, actionId) {
+    commentContext = { projectId, actionId };
+    const project = store.getProject(projectId);
+    let comments;
+    if (actionId) {
+        const action = project?.actions.find(a => a.id === actionId);
+        comments = action?.comments || [];
+        commentModalTitle.textContent = 'Action Comments';
+    } else {
+        comments = project?.notesComments || [];
+        commentModalTitle.textContent = 'Notes Comments';
+    }
+    renderCommentsList(comments);
+    commentModal.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+    commentTextInput.focus();
+}
+
+function closeCommentModal() {
+    commentModal.classList.add('hidden');
+    overlay.classList.add('hidden');
+    commentForm.reset();
+    commentContext = { projectId: null, actionId: null };
+}
+
+function renderCommentsList(comments) {
+    if (!comments || comments.length === 0) {
+        commentsList.innerHTML = '<p class="no-comments">No comments yet.</p>';
+        return;
+    }
+    commentsList.innerHTML = comments.map(c => `
+        <div class="comment-item">
+            <div class="comment-meta">
+                <span class="comment-author">${escapeHtml(c.author)}</span>
+                <span class="comment-date">${c.created_at}</span>
+            </div>
+            <div class="comment-text">${escapeHtml(c.text)}</div>
+        </div>
+    `).join('');
+    // Scroll to bottom to show latest
+    commentsList.scrollTop = commentsList.scrollHeight;
+}
+
+function handleCommentSubmit(e) {
+    e.preventDefault();
+    const text = commentTextInput.value.trim();
+    if (!text) return;
+
+    const { projectId, actionId } = commentContext;
+    if (actionId) {
+        store.addActionComment(projectId, actionId, currentUser.username, text);
+    } else {
+        store.addNotesComment(projectId, currentUser.username, text);
+    }
+    commentForm.reset();
+
+    // Refresh comments list
+    const project = store.getProject(projectId);
+    let comments;
+    if (actionId) {
+        const action = project?.actions.find(a => a.id === actionId);
+        comments = action?.comments || [];
+    } else {
+        comments = project?.notesComments || [];
+    }
+    renderCommentsList(comments);
+    renderProjects(); // update comment count badges
 }
 
 // ------------------------------------------------------------
@@ -685,9 +774,12 @@ document.addEventListener('DOMContentLoaded', () => {
     projectCancelBtn.addEventListener('click', closeProjectModal);
     actionForm.addEventListener('submit', handleActionSubmit);
     actionCancelBtn.addEventListener('click', closeActionModal);
+    commentCloseBtn.addEventListener('click', closeCommentModal);
+    commentForm.addEventListener('submit', handleCommentSubmit);
     overlay.addEventListener('click', () => {
         closeProjectModal();
         closeActionModal();
+        closeCommentModal();
         closeSettings();
     });
     exportBtn.addEventListener('click', exportData);
@@ -708,6 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.key === 'Escape') {
             closeProjectModal();
             closeActionModal();
+            closeCommentModal();
             closeSettings();
         }
     });
