@@ -73,7 +73,7 @@ Projects contain actions, which can have comments. All timestamps use `yymmdd-hh
 
 The app is a static PWA. Deploy to any web server (Nginx, Apache, GitHub Pages, etc.).
 
-**GitHub Pages (active):** Deployed automatically from the `main` branch root. Includes `.nojekyll` to disable Jekyll processing.
+**GitHub Pages (live):** ✅ Deployed automatically via GitHub Actions from the `main` branch root. Includes `.nojekyll` to disable Jekyll processing.
 `https://comfac-global-group.github.io/proj-monitoring/`
 
 For self-hosted HTTPS (required for PWA installation):
