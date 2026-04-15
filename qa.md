@@ -1,0 +1,81 @@
+# QA / Problems / Backlog
+**Project:** Plant Operations Meeting Monitor (POMM)
+**Repo:** https://github.com/Comfac-Global-Group/proj-monitoring
+**Status:** OPEN
+**Created:** 260415-120000
+**Last Updated:** 260415-120000
+
+---
+
+## How to Use This File
+
+- Each issue has a datetime stamp `yymmdd-hhmmss` and a status: `OPEN` | `IN PROGRESS` | `CLOSED`
+- Add new issues at the top of the relevant section.
+- Close issues by changing status and adding a resolution note.
+
+---
+
+## P0 — Blockers (must fix before MVP ships)
+
+| ID | datetime | Status | Issue | Notes |
+|----|----------|--------|-------|-------|
+| Q-001 | 260415-120000 | OPEN | DeepSeek tends to produce visually poor UIs by default | Must include explicit UI instructions in FRD. Reference a clean app (Linear, Notion lite). Do not accept default form styling. |
+| Q-002 | 260415-120000 | OPEN | Google Drive OAuth in a static PWA requires careful CORS and token handling | Use `gapi` JS client. Test on actual low-spec PC. Token must be stored in `localStorage` securely. |
+| Q-003 | 260415-120000 | OPEN | localStorage has ~5MB limit — large project histories may overflow | Implement a trim/archive strategy. Warn user when storage > 4MB. |
+| Q-004 | 260415-120000 | OPEN | WebDAV (Nextcloud/Seafile) Basic Auth via browser fetch may be blocked by CORS on some servers | Must test against actual Nextcloud/Seafile instance. Document workaround (proxy or CORS headers on server). |
+| Q-005 | 260415-120000 | OPEN | PWA service worker caching stale app shell after updates | Implement cache-busting strategy with version hash in service worker. Show "New version available — reload" banner. |
+
+---
+
+## P1 — High Priority Issues
+
+| ID | datetime | Status | Issue | Notes |
+|----|----------|--------|-------|-------|
+| Q-006 | 260415-120000 | OPEN | Rich text editing in Action field: contenteditable vs textarea — which to use | contenteditable is richer but harder to sanitize. textarea with markdown-lite is safer for MVP. Decide before implementation. |
+| Q-007 | 260415-120000 | OPEN | Date format mismatch: spreadsheet uses `yymmdd` prefix in notes text (e.g. `260415 - ...`) but due dates are `YYYY-MM-DD` | App must parse both. Display consistently as `DD MMM YYYY` in UI. Store as ISO internally. |
+| Q-008 | 260415-120000 | OPEN | OPEN/CLOSED toggle must gray out entire project row — CSS state needs to be reliable across themes | Test in both Day and Night mode. Closed projects should still be visible/filterable, not hidden. |
+| Q-009 | 260415-120000 | OPEN | File attachments in Notes: local file upload stores base64 in JSON — large files will bloat the JSON | For MVP: store filename + file as base64 only if < 1MB. Warn user for larger files. Cloud sync path is the real solution (post-MVP). |
+| Q-010 | 260415-120000 | OPEN | Action column width is user-adjustable — must persist per session | Save column widths to `localStorage` under `settings.columnWidths`. |
+| Q-011 | 260415-120000 | OPEN | Phone mode vs Desktop mode: toggling mid-session must not lose unsaved edits | Autosave on every change (debounced 500ms). Toggle is purely a layout switch. |
+| Q-012 | 260415-120000 | OPEN | Version snapshot restore: no confirmation dialog — user may accidentally overwrite current state | Add "Are you sure? Current unsaved changes will be lost." modal before restore. |
+
+---
+
+## P2 — Medium Priority / UX Issues
+
+| ID | datetime | Status | Issue | Notes |
+|----|----------|--------|-------|-------|
+| Q-013 | 260415-120000 | OPEN | No visual indicator when cloud sync fails | Show a sync status icon (✓ synced / ⚠ sync failed / ↻ syncing) in the header. |
+| Q-014 | 260415-120000 | OPEN | Commenter role: comment bubble on Notes field — it is not obvious that Notes comments are separate from Action comments | Use distinct styling: Notes comment bubble should be a different color or icon. |
+| Q-015 | 260415-120000 | OPEN | Login screen: no "forgot password" or account recovery flow | Acceptable for MVP (low-stakes). Document that password reset = edit `config.json` directly. |
+| Q-016 | 260415-120000 | OPEN | Calendar date picker: native `<input type="date">` is ugly on older browsers/PCs | Use native for MVP. If it breaks on target PCs, swap to a lightweight picker (e.g. Pikaday). |
+| Q-017 | 260415-120000 | OPEN | Action text entries in the spreadsheet use `yymmdd - text` format (e.g. `260415 - for follow up`) — app should render these as a timeline/log, not a blob of text | Nice-to-have parse: detect `yymmdd - ` prefix and render as dated log entries. Post-MVP. |
+| Q-018 | 260415-120000 | OPEN | No keyboard shortcuts (add action, save, close project) | Post-MVP. Document common shortcuts (Ctrl+S = save, Escape = deselect). |
+
+---
+
+## P3 — Low Priority / Backlog
+
+| ID | datetime | Status | Issue | Notes |
+|----|----------|--------|-------|-------|
+| Q-019 | 260415-120000 | OPEN | No search or filter on projects | Post-MVP. Add text search bar filtering by PROJECT title or ACTION text. |
+| Q-020 | 260415-120000 | OPEN | No sort order control (e.g. sort by due date, sort by status) | Post-MVP. Default sort: open first, then by soonest due date. |
+| Q-021 | 260415-120000 | OPEN | No print / export to PDF view | Post-MVP. |
+| Q-022 | 260415-120000 | OPEN | Import from existing `.xlsx` (OTHER MATTERS sheet) | Post-MVP. Write a one-time migration script (Python or Node) to convert XLSX to app JSON format. |
+| Q-023 | 260415-120000 | OPEN | No audit trail of who changed what | Post-MVP. Each save could append a `change_log[]` entry with user + datetime + field. |
+| Q-024 | 260415-120000 | OPEN | Multi-device conflict resolution when two users edit and sync JSON to the same cloud path | Post-MVP. For now: last-write-wins. Document this clearly. |
+
+---
+
+## Closed Issues
+
+_None yet._
+
+---
+
+## Known Constraints (from source data)
+
+- Source: `PLANT_OPERATIONS_MEETING_NEW__2024__2026.xlsx`, sheet `OTHER MATTERS`
+- Columns mapped: `DONE` (open/closed), `ITEMS/PROJ` (project title), `DETAILS` (description), `ACTION TO BE TAKEN` (action text with embedded yymmdd log), `ACTION DUE DATE` (due date), `REMARKS` (notes), `LINK` (notes links)
+- The "action" field in the spreadsheet is a cumulative log (one cell = many dated entries). The app treats this as rich text for MVP, not parsed entries.
+- `OWNER` column exists in source data — not in MVP scope. Add to roadmap.

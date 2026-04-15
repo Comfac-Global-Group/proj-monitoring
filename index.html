@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Operations Meeting Monitor (POMM)</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
+    <meta name="theme-color" content="var(--theme-color)">
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1 class="app-title">POMM <span class="version-badge" id="version-badge">v0.1.0</span></h1>
+        </div>
+        <div class="header-right">
+            <button class="icon-button" id="theme-toggle" aria-label="Toggle theme">🌙</button>
+            <button class="icon-button" id="layout-toggle" aria-label="Toggle phone/desktop layout">📱</button>
+            <button class="icon-button" id="settings-toggle" aria-label="Open settings">⚙️</button>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- Login screen (shown by default) -->
+        <div id="login-screen" class="login-screen">
+            <div class="login-card">
+                <h2>Plant Operations Meeting Monitor</h2>
+                <p class="login-subtitle">Lightweight project tracking for plant operations</p>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Log In</button>
+                </form>
+                <p class="login-hint">Credentials are stored locally in config.json</p>
+            </div>
+        </div>
+
+        <!-- Main app (hidden by default) -->
+        <div id="app-container" class="app-container hidden">
+            <!-- Project list view -->
+            <div class="projects-container">
+                <div class="projects-header">
+                    <h2>Projects</h2>
+                    <button class="btn btn-secondary" id="add-project-btn">+ Add Project</button>
+                </div>
+                <div id="projects-list" class="projects-list">
+                    <!-- Projects will be inserted here -->
+                    <div class="empty-state">
+                        <p>No projects yet. Add your first project to get started.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings panel (hidden) -->
+        <div id="settings-panel" class="settings-panel hidden">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button class="icon-button close-btn" id="settings-close">✕</button>
+            </div>
+            <div class="settings-content">
+                <div class="settings-section">
+                    <h3>Data Management</h3>
+                    <button class="btn btn-secondary" id="export-btn">Export All Data (.json)</button>
+                    <button class="btn btn-secondary" id="import-btn">Import Data</button>
+                    <input type="file" id="import-file" accept=".json" hidden>
+                </div>
+                <div class="settings-section">
+                    <h3>Cloud Sync</h3>
+                    <p>Configure cloud storage for backup and sync.</p>
+                    <select id="cloud-provider">
+                        <option value="none">None (local only)</option>
+                        <option value="google">Google Drive</option>
+                        <option value="nextcloud">Nextcloud / Seafile</option>
+                    </select>
+                    <div id="cloud-config" class="cloud-config hidden">
+                        <!-- Configuration fields will be shown based on selection -->
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Version Snapshots</h3>
+                    <button class="btn btn-secondary" id="save-version-btn">Save Current Version</button>
+                    <div id="versions-list"></div>
+                </div>
+                <div class="settings-section">
+                    <h3>User Management</h3>
+                    <div id="users-list"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="project-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Edit Project</h2>
+            <form id="project-form">
+                <div class="form-group">
+                    <label for="project-title">Project Title</label>
+                    <input type="text" id="project-title" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-details">Details</label>
+                    <textarea id="project-details" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="project-notes">Notes</label>
+                    <textarea id="project-notes" rows="3" placeholder="Rich text, links, file references"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="project-status"> Open
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" id="project-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="action-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Edit Action</h2>
+            <form id="action-form">
+                <div class="form-group">
+                    <label for="action-text">Action Text</label>
+                    <textarea id="action-text" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="action-due-date">Due Date</label>
+                    <input type="date" id="action-due-date">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" id="action-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="overlay hidden" id="overlay"></div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
