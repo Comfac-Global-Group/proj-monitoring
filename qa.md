@@ -1,9 +1,50 @@
 # QA / Problems / Backlog
-**Project:** Plant Operations Meeting Monitor (POMM)
+**Project:** Project Monitoring Log (PML)
 **Repo:** https://github.com/Comfac-Global-Group/proj-monitoring
 **Status:** OPEN
 **Created:** 260415-120000
-**Last Updated:** 260415-120000
+**Last Updated:** 260415-213300
+
+---
+
+## First-Use Guide: Account Creation & Login
+
+### How Login Works
+- App uses **browser localStorage** (not a server) — all user data is stored locally in the browser.
+- On first load the app shows a login screen with Username and Password fields.
+- Session is stored in `sessionStorage` — it clears when the browser tab/window is closed.
+
+### Default Credentials (First-Time Use)
+Three accounts are pre-loaded on first use:
+
+| Username | Password | Role | What they can do |
+|----------|----------|------|-----------------|
+| `admin` | `admin` | editor | Full access: add/edit/delete projects and actions |
+| `commenter` | `commenter` | commenter | View everything + add comments |
+| `viewer` | `viewer` | viewer | Read-only |
+
+> **Login with `admin` / `admin` to get started.**
+
+### How to Add a New User (No UI Yet — Q-027)
+There is currently no Add User button. New users must be added via the browser console:
+1. Open the app in Chrome/Firefox
+2. Press `F12` → go to **Console** tab
+3. Run:
+```javascript
+store.addUser({ username: 'yourname', password: 'yourpassword', role: 'editor' });
+```
+Roles: `editor`, `commenter`, `viewer`
+
+### How to Change a Password
+Same method — use `store.updateUser()` in the console, or export the data JSON, edit the password field, and re-import.
+
+### How to Delete a User
+Settings (⚙️) → User Management → click Delete next to the user. The `admin` account cannot be deleted.
+
+### Security Notes
+- Passwords are stored in **plain text** in localStorage (MVP limitation — see Q-028).
+- Anyone with access to the browser's DevTools can read all credentials.
+- This is acceptable for internal use on a trusted PC. Do not deploy publicly without adding password hashing.
 
 ---
 
@@ -20,6 +61,8 @@
 | ID | datetime | Status | Issue | Notes |
 |----|----------|--------|-------|-------|
 | Q-025 | 260415-120000 | CLOSED | `manifest.json` `start_url: "/"` breaks PWA install on GitHub Pages subpath | **Fixed 260415**: changed to `/proj-monitoring/`, added `scope`, fixed shortcut URLs. |
+| Q-027 | 260415-213300 | OPEN | No UI to add new users — only way is browser console `store.addUser()` | Must add an "Add User" form in Settings → User Management. Fields: username, password, role. Admin only. |
+| Q-028 | 260415-213300 | OPEN | App name still shown as "POMM" in browser tab on cached PWA installs | Renamed to PML in code — users who installed the PWA must uninstall and reinstall to pick up new name. |
 | Q-001 | 260415-120000 | OPEN | DeepSeek tends to produce visually poor UIs by default | Must include explicit UI instructions in FRD. Reference a clean app (Linear, Notion lite). Do not accept default form styling. |
 | Q-002 | 260415-120000 | OPEN | Google Drive OAuth in a static PWA requires careful CORS and token handling | Use `gapi` JS client. Test on actual low-spec PC. Token must be stored in `localStorage` securely. |
 | Q-003 | 260415-120000 | OPEN | localStorage has ~5MB limit — large project histories may overflow | Implement a trim/archive strategy. Warn user when storage > 4MB. |

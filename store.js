@@ -1,4 +1,4 @@
-// Plant Operations Meeting Monitor (POMM) - Data Store
+// Project Monitoring Log (PML) - Data Store
 // All data reads/writes go through this module
 
 // ------------------------------------------------------------

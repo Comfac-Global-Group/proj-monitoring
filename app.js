@@ -1,4 +1,4 @@
-// Plant Operations Meeting Monitor (POMM) - Main Application
+// Project Monitoring Log (PML) - Main Application
 import { store, formatDisplayDate } from './store.js';
 
 // ------------------------------------------------------------
@@ -606,7 +606,7 @@ function exportData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `pomm-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `pml-export-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -1,7 +1,7 @@
 {
-  "name": "Plant Operations Meeting Monitor",
-  "short_name": "POMM",
-  "description": "Lightweight project monitoring tool for plant operations meetings",
+  "name": "Project Monitoring Log",
+  "short_name": "PML",
+  "description": "Lightweight project monitoring log",
   "start_url": "/proj-monitoring/",
   "scope": "/proj-monitoring/",
   "display": "standalone",
