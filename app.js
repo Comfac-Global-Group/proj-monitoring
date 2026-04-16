@@ -12,6 +12,20 @@ const collapsedProjects = new Set();
 const collapsedLogs = new Set();
 const collapsedDoneActions = new Set();
 const collapsedNotes = new Set();
+let collapseDefaultsInitialized = false;
+
+function initializeCollapseDefaults(projects) {
+    if (collapseDefaultsInitialized) return;
+    if (projects.length === 0) return;
+    // Add all project IDs to collapsed sets
+    projects.forEach(p => {
+        collapsedProjects.add(p.id);
+        collapsedDoneActions.add(p.id);
+    });
+    console.log(`Default collapse: ${projects.length} projects collapsed`);
+    collapseDefaultsInitialized = true;
+}
+
 let closedSectionCollapsed = store.getSettings().closedSectionCollapsed || false;
 let commentContext = { projectId: null, actionId: null };
 let syncIntervalId = null;
@@ -366,6 +380,7 @@ function clearFilters() {
 // ------------------------------------------------------------
 function renderProjects() {
     const allProjects = store.getProjects();
+    initializeCollapseDefaults(allProjects);
     const filtered = applyFilters(allProjects);
     const sorted = applySort(filtered);
     const openProjects = sorted.filter(p => p.status === 'open');
@@ -408,6 +423,14 @@ function renderProjects() {
     }
 
     projectsList.innerHTML = html;
+    
+    // Update collapse all button text
+    const collapseAllBtn = document.getElementById('collapse-all-btn');
+    if (collapseAllBtn) {
+        const projects = store.getProjects();
+        const allCollapsed = projects.every(p => collapsedProjects.has(p.id));
+        collapseAllBtn.textContent = allCollapsed ? 'Expand All' : 'Collapse All';
+    }
 }
 
 function renderProjectCard(project) {
@@ -415,6 +438,7 @@ function renderProjectCard(project) {
     const isCollapsed = collapsedProjects.has(project.id);
     const isNotesCollapsed = collapsedNotes.has(project.id);
     const actionsHtml = renderActions(project);
+    const hasOverdue = hasOverdueActions(project);
 
     return `
         <div class="project-card ${isClosed ? 'closed' : ''}" data-project-id="${project.id}">
@@ -424,7 +448,7 @@ function renderProjectCard(project) {
                         ${isCollapsed ? '▶' : '▼'}
                     </button>
                     <h3 class="project-title">${escapeHtml(project.title)}</h3>
-                    ${project.project_due_date ? `<span class="project-due-badge">Due ${formatDisplayDate(project.project_due_date)}</span>` : ''}
+                    ${project.project_due_date ? `<span class="project-due-badge">Due ${formatDisplayDate(project.project_due_date)}</span>` : ''}${hasOverdue ? '<span class="overdue-badge">⚠️ Overdue</span>' : ''}
                 </div>
                 <div class="project-status-toggle">
                     <span class="status-badge ${isClosed ? 'closed' : 'open'}">${project.status.toUpperCase()}</span>
@@ -489,8 +513,8 @@ function renderActions(project) {
 
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-    const doneActions = project.actions.filter(a => a.done);
-    const undoneActions = project.actions.filter(a => !a.done);
+    const closedActions = project.actions.filter(a => a.status === 'closed');
+    const openActions = project.actions.filter(a => a.status === 'open');
     const hideDone = collapsedDoneActions.has(project.id);
 
     let html = '';
@@ -513,7 +537,7 @@ function renderActions(project) {
         const hasLogs = action.log_entries && action.log_entries.length > 0;
         const logsCollapsed = collapsedLogs.has(action.id);
         return `
-            <div class="action-item ${action.done ? 'done' : ''}" data-action-id="${action.id}">
+            <div class="action-item ${action.status === 'closed' ? 'closed' : ''}" data-action-id="${action.id}">
                 <div class="action-main">
                     <div class="action-text">${escapeHtml(action.text)}</div>
                     <div class="action-meta-row">
@@ -556,24 +580,24 @@ function renderActions(project) {
     }
 
     // Active actions
-    if (undoneActions.length === 0) {
+    if (openActions.length === 0) {
         html += '<p class="text-sm" style="color: var(--text-tertiary);">No active actions</p>';
     } else {
-        undoneActions.forEach(action => {
+        openActions.forEach(action => {
             html += renderActionItem(action);
         });
     }
 
     // Closed Actions section
-    if (doneActions.length > 0) {
+    if (closedActions.length > 0) {
         html += `
             <div class="closed-actions-section">
                 <div class="closed-actions-header" data-action="toggle-done-actions" data-project-id="${project.id}">
-                    <h4>Closed Actions (${doneActions.length})</h4>
+                    <h4>Closed Actions (${closedActions.length})</h4>
                     <button class="btn btn-small btn-text">${hideDone ? '▶ Show' : '▼ Hide'}</button>
                 </div>
                 <div class="closed-actions-list ${hideDone ? 'hidden' : ''}">
-                    ${doneActions.map(action => renderActionItem(action)).join('')}
+                    ${closedActions.map(action => renderActionItem(action)).join('')}
                 </div>
             </div>
         `;
@@ -656,7 +680,7 @@ function openActionModal(projectId, actionId = null) {
         actionDueDateInput.value = yymmddToIso(action.due_date) || '';
         actionOwnerInput.value = action.owner || '';
         actionIssueInput.value = action.issue || '';
-        actionDoneInput.checked = action.done || false;
+        actionDoneInput.checked = action.status === 'closed';
     } else {
         actionTextInput.value = '';
         actionDueDateInput.value = '';
@@ -682,7 +706,7 @@ function handleActionSubmit(event) {
         due_date: isoToYymmdd(actionDueDateInput.value),
         owner: actionOwnerInput.value.trim(),
         issue: actionIssueInput.value.trim(),
-        done: actionDoneInput.checked
+        status: actionDoneInput.checked ? 'closed' : 'open'
     };
     if (!actionData.text) {
         alert('Action text is required');
@@ -1182,6 +1206,24 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function getTodayYMD() {
+    const d = new Date();
+    const year = String(d.getFullYear()).slice(-2);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
+}
+
+function hasOverdueActions(project) {
+    if (!project.actions || project.actions.length === 0) return false;
+    const today = getTodayYMD();
+    return project.actions.some(action =>
+        action.status === 'open' &&
+        action.due_date &&
+        action.due_date <= today
+    );
+}
+
 function showNotification(message) {
     const notification = document.createElement('div');
     notification.textContent = message;
@@ -1235,6 +1277,20 @@ function showUpdateNotification(newWorker) {
     });
     document.body.appendChild(notification);
 }
+function toggleCollapseAll() {
+    const projects = store.getProjects();
+    const allCollapsed = projects.every(p => collapsedProjects.has(p.id));
+    if (allCollapsed) {
+        // Expand all
+        collapsedProjects.clear();
+        document.getElementById('collapse-all-btn').textContent = 'Collapse All';
+    } else {
+        // Collapse all
+        projects.forEach(p => collapsedProjects.add(p.id));
+        document.getElementById('collapse-all-btn').textContent = 'Expand All';
+    }
+    renderProjects();
+}
 
 // ------------------------------------------------------------
 // Event Listeners
@@ -1250,6 +1306,7 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsToggle.addEventListener('click', openSettings);
     settingsClose.addEventListener('click', closeSettings);
     addProjectBtn.addEventListener('click', () => openProjectModal());
+    document.getElementById('collapse-all-btn').addEventListener('click', toggleCollapseAll);
     projectForm.addEventListener('submit', handleProjectSubmit);
     projectCancelBtn.addEventListener('click', closeProjectModal);
     actionForm.addEventListener('submit', handleActionSubmit);

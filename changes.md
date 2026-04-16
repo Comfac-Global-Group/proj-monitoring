@@ -8,11 +8,80 @@
 
 ## Current Version
 
-**v0.3.2** — `260416-1700` — Agent: deepseek-reasoner — **DONE**
+**v0.3.6** — `260416-1859` — Agent: Kimi Code CLI — **DONE**
 
 ---
 
 ## Version History
+
+### v0.3.6 | 260416-1859 | DONE
+**Agent:** Kimi Code CLI  
+**Changes:**
+- Fixed overdue badge not appearing due to two bugs in `hasOverdueActions()`:
+  - `getTodayYMD()` was returning `YYYY-MM-DD` instead of `yymmdd`, causing string comparison failure against `action.due_date`.
+  - `hasOverdueActions()` checked `!action.done` while the codebase migrated to `action.status === 'open'`.
+- Synced version badge and service-worker cache to v0.3.6.
+
+**What you should see:**
+- Version badge: `v0.3.6`
+- Service worker cache: `pml-260416-1859`
+- ~114 projects with open actions past their due date now correctly display the red "⚠️ Overdue" badge.
+
+---
+
+### v0.3.5 | 260416-1847 | DONE
+**Agent:** deepseek-reasoner
+**Changes:**
+- QA: Added overdue alert badge to projects with open actions past due date.
+- New `.overdue-badge` CSS style with danger color.
+- Helper function `hasOverdueActions()` computes overdue status.
+
+**What you should see:**
+- Version badge: `v0.3.5`
+- Service worker cache: `pml-260416-1847`
+- Projects with open actions that have due dates in the past show a red "⚠️ Overdue" badge next to the title.
+- Badge appears only when project is collapsed/expanded? Actually badge always visible in header.
+- Overdue detection uses today's date (YYYY-MM-DD) vs action due_date.
+
+---
+
+### v0.3.4 | 260416-1830 | DONE
+**Agent:** deepseek-reasoner
+**Changes:**
+- Default collapse state: All projects are collapsed by default.
+- Default closed actions: All closed actions sections are collapsed by default.
+- Added `initializeCollapseDefaults()` to set initial collapse states.
+- Updated `renderProjects()` to apply defaults on first render.
+
+**What you should see:**
+- Version badge: `v0.3.4`
+- Service worker cache: `pml-260416-1830`
+- When you open the app, all project cards are collapsed (showing only headers).
+- Closed actions sections within each project are collapsed by default.
+- "Collapse All" button shows "Expand All" initially.
+- Toggle individual projects/closed actions works as before.
+
+---
+### v0.3.3 | 260416-1715 | DONE
+**Agent:** deepseek-reasoner
+**Changes:**
+- QA requirement: Changed action model from boolean `done` to status string `open`/`closed`.
+- QA requirement: Added "Collapse/Expand All" button beside "Add Project" button (toggles project cards).
+- QA requirement: Automatically close actions created prior to April 2026 (one‑time migration).
+- Migration: Existing data with `done` field is automatically converted to `status` on load.
+- Updated action modal checkbox label from "Done" to "Closed".
+- Updated CSS class `.action-item.done` to `.action-item.closed`.
+- Updated store.js `Action` typedef, `addAction()`, `updateAction()`, `_migrateData()`, `_closeActionsBeforeApril2026()`.
+
+**What you should see:**
+- Version badge: `v0.3.3`
+- Service worker cache: `pml-260416-1715`
+- Action modal checkbox labeled "Closed" (instead of "Done").
+- New "Collapse All" / "Expand All" button next to "Add Project" that toggles all project cards.
+- Actions created before April 2026 are automatically marked as closed (one‑time migration).
+- All existing action features (due dates, owner, issue, comments, logs, edit, delete) work inside the closed section.
+
+---
 
 ### v0.3.2 | 260416-1700 | DONE
 **Agent:** deepseek-reasoner

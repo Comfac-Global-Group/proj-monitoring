@@ -142,6 +142,7 @@ function parseActionLog(text) {
  * @property {string} due_date - YYYY-MM-DD
  * @property {string} owner - assignee name
  * @property {string} issue - cause of delay
+ * @property {'open'|'closed'} status - open or closed
  * @property {Comment[]} comments - array of Comment objects
  * @property {{date: string, text: string}[]} log_entries - parsed from text
  * @property {string} created_at - yymmdd-hhmmss
@@ -197,12 +198,51 @@ class Store {
         if (data) {
             try {
                 this.data = JSON.parse(data);
+                this._migrateData();
             } catch (e) {
                 console.error('Failed to parse stored data, initializing empty');
                 this.data = { projects: [] };
             }
         } else {
             this.data = { projects: [] };
+        }
+    }
+
+    _migrateData() {
+        if (!this.data.projects) return;
+        this.data.projects.forEach(project => {
+            if (!project.actions) return;
+            project.actions.forEach(action => {
+                // Migrate done field to status
+                if (action.hasOwnProperty('done')) {
+                    action.status = action.done ? 'closed' : 'open';
+                    delete action.done;
+                }
+                // Ensure status field exists
+                if (!action.hasOwnProperty('status')) {
+                    action.status = 'open';
+                }
+            });
+        });
+    }
+
+    _closeActionsBeforeApril2026() {
+        if (!this.data.projects) return;
+        let count = 0;
+        this.data.projects.forEach(project => {
+            if (!project.actions) return;
+            project.actions.forEach(action => {
+                // Check if action created before April 2026 (date part < 260401)
+                const datePart = action.created_at ? action.created_at.substring(0, 6) : '';
+                if (datePart && datePart < '260401' && action.status === 'open') {
+                    action.status = 'closed';
+                    count++;
+                }
+            });
+        });
+        if (count > 0) {
+            console.log(`Closed ${count} actions created before April 2026`);
+            this._saveData();
         }
     }
 
@@ -219,6 +259,12 @@ class Store {
                 if (typeof this.config.settings?.closedSectionCollapsed !== 'boolean') {
                     this.config.settings = this.config.settings || {};
                     this.config.settings.closedSectionCollapsed = false;
+                    this._saveConfig();
+                }
+                // Close actions created before April 2026
+                if (!this.config.settings.actionsClosedBeforeApril2026) {
+                    this._closeActionsBeforeApril2026();
+                    this.config.settings.actionsClosedBeforeApril2026 = true;
                     this._saveConfig();
                 }
             } catch (e) {
@@ -255,7 +301,8 @@ class Store {
                 layout: 'desktop',
                 cloudProvider: 'none',
                 cloudConfig: {},
-                closedSectionCollapsed: false
+                closedSectionCollapsed: false,
+                actionsClosedBeforeApril2026: false
             }
         };
         this._saveConfig();
@@ -401,6 +448,9 @@ class Store {
      * @param {Object} actionData
      * @param {string} actionData.text
      * @param {string} actionData.due_date
+     * @param {string} actionData.owner
+     * @param {string} actionData.issue
+     * @param {'open'|'closed'} actionData.status
      * @returns {Action|null}
      */
     addAction(projectId, actionData) {
@@ -415,7 +465,7 @@ class Store {
             due_date: actionData.due_date || '',
             owner: actionData.owner || '',
             issue: actionData.issue || '',
-            done: actionData.done || false,
+            status: actionData.status || 'open',
             comments: [],
             log_entries: parseActionLog(text),
             created_at: timestamp,
@@ -432,6 +482,12 @@ class Store {
      * @param {string} projectId
      * @param {string} actionId
      * @param {Object} updates
+     * @param {string} [updates.text]
+     * @param {string} [updates.due_date]
+     * @param {string} [updates.owner]
+     * @param {string} [updates.issue]
+     * @param {'open'|'closed'} [updates.status]
+     * @param {string} [user]
      */
     updateAction(projectId, actionId, updates, user = 'system') {
         const project = this.getProject(projectId);
@@ -444,7 +500,7 @@ class Store {
         if (updates.hasOwnProperty('text') && action.text !== updates.text) {
             updates.log_entries = parseActionLog(updates.text);
         }
-        ['text', 'due_date', 'owner', 'issue', 'done'].forEach(field => {
+        ['text', 'due_date', 'owner', 'issue', 'status'].forEach(field => {
             if (updates.hasOwnProperty(field) && action[field] !== updates[field]) {
                 this._appendChangeLog(project, user, `action.${field}`, action[field], updates[field], timestamp);
             }
