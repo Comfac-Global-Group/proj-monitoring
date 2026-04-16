@@ -8,7 +8,25 @@
 
 ## Current Version
 
-**v0.3.6** — `260416-1859` — Agent: Kimi Code CLI — **DONE**
+**v0.3.7** — `260416-2029` — Agent: Kimi Code CLI — **DONE**
+
+---
+
+## Version History
+
+### v0.3.7 | 260416-2029 | DONE
+**Agent:** Kimi Code CLI  
+**Changes:**
+- Fixed broken collapse toggles for **Notes** and **Closed Projects** sections.
+- Root cause: `handleClick()` read `data-action` directly from `event.target`, but clicks on inner `<button>` or `<h4>` elements missed the attribute.
+- Fix: use `event.target.closest('[data-action]')` so nested clicks bubble correctly to the action wrapper.
+
+**What you should see:**
+- Version badge: `v0.3.7`
+- Service worker cache: `pml-260416-2029`
+- Clicking "Show / Hide" on Notes and Closed Projects now works reliably.
+
+---
 
 ---
 

@@ -972,7 +972,8 @@ function exportChangelogCsv() {
 // Event Delegation
 // ------------------------------------------------------------
 function handleClick(event) {
-    const target = event.target;
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
     const action = target.getAttribute('data-action');
     const projectId = target.getAttribute('data-project-id');
     const actionId = target.getAttribute('data-action-id');
