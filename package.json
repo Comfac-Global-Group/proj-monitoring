@@ -14,7 +14,7 @@
     "offline-first"
   ],
   "author": "Comfac Global Group R&D",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "devDependencies": {
     "live-server": "^1.2.2"
   }

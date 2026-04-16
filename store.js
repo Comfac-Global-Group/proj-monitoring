@@ -582,6 +582,25 @@ class Store {
     }
 
     /**
+     * Check approximate localStorage usage for this app's keys
+     * @returns {{sizeBytes: number, sizeMb: number, warning: boolean}}
+     */
+    checkStorageSize() {
+        const keys = [STORAGE_KEY, CONFIG_KEY, VERSIONS_KEY];
+        let sizeBytes = 0;
+        keys.forEach(key => {
+            const item = localStorage.getItem(key);
+            if (item) sizeBytes += item.length * 2; // UTF-16
+        });
+        const sizeMb = sizeBytes / (1024 * 1024);
+        return {
+            sizeBytes,
+            sizeMb,
+            warning: sizeMb > 4
+        };
+    }
+
+    /**
      * Import data from JSON string
      * @param {string} jsonString
      */

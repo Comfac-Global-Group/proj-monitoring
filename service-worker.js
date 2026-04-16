@@ -1,5 +1,6 @@
-// Plant Operations Meeting Monitor - Service Worker
-const CACHE_NAME = 'pomm-v1';
+// Project Monitoring Log (PML) - Service Worker
+const APP_VERSION = '260416-0951';
+const CACHE_NAME = `pml-${APP_VERSION}`;
 const CACHE_URLS = [
   './',
   './index.html',

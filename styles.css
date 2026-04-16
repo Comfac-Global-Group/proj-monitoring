@@ -276,6 +276,21 @@ body {
     color: var(--text-tertiary);
 }
 
+.project-card.closed .project-details,
+.project-card.closed .project-notes-content,
+.project-card.closed .action-text,
+.project-card.closed .action-due-date {
+    color: var(--text-tertiary);
+}
+
+.project-card.closed .action-item:hover {
+    background-color: transparent;
+}
+
+.project-card.closed .project-notes {
+    border-left-color: var(--border-color);
+}
+
 .project-header {
     display: flex;
     justify-content: space-between;

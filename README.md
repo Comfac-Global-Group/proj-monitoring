@@ -89,4 +89,4 @@ For self-hosted HTTPS (required for PWA installation):
 
 ## License
 
-See `LICENSE` file. Note: `package.json` currently declares MIT but the `LICENSE` file contains GNU GPL v3 — this mismatch needs to be resolved (tracked as Q-026).
+See `LICENSE` file (GNU GPL v3).

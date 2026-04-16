@@ -61,14 +61,14 @@ Settings (⚙️) → User Management → click Delete next to the user. The `ad
 | ID | datetime | Status | Issue | Notes |
 |----|----------|--------|-------|-------|
 | Q-025 | 260415-120000 | CLOSED | `manifest.json` `start_url: "/"` breaks PWA install on GitHub Pages subpath | **Fixed 260415**: changed to `/proj-monitoring/`, added `scope`, fixed shortcut URLs. |
-| Q-027 | 260415-213300 | OPEN | No UI to add new users — only way is browser console `store.addUser()` | Must add an "Add User" form in Settings → User Management. Fields: username, password, role. Admin only. |
+| Q-027 | 260415-213300 | CLOSED | No UI to add new users — only way is browser console `store.addUser()` | **Fixed 260416**: Added Add User form in Settings → User Management, visible only to admin. |
 | Q-028 | 260415-213300 | OPEN | App name still shown as "POMM" in browser tab on cached PWA installs | Renamed to PML in code — users who installed the PWA must uninstall and reinstall to pick up new name. |
 | Q-001 | 260415-120000 | OPEN | DeepSeek tends to produce visually poor UIs by default | Must include explicit UI instructions in FRD. Reference a clean app (Linear, Notion lite). Do not accept default form styling. |
 | Q-002 | 260415-120000 | OPEN | Google Drive OAuth in a static PWA requires careful CORS and token handling | Use `gapi` JS client. Test on actual low-spec PC. Token must be stored in `localStorage` securely. |
-| Q-003 | 260415-120000 | OPEN | localStorage has ~5MB limit — large project histories may overflow | Implement a trim/archive strategy. Warn user when storage > 4MB. |
+| Q-003 | 260415-120000 | CLOSED | localStorage has ~5MB limit — large project histories may overflow | **Fixed 260416**: Added `store.checkStorageSize()` and UI warning notification when usage exceeds 4MB. |
 | Q-004 | 260415-120000 | OPEN | WebDAV (Nextcloud/Seafile) Basic Auth via browser fetch may be blocked by CORS on some servers | Must test against actual Nextcloud/Seafile instance. Document workaround (proxy or CORS headers on server). |
-| Q-005 | 260415-120000 | OPEN | PWA service worker caching stale app shell after updates | Implement cache-busting strategy with version hash in service worker. Show "New version available — reload" banner. |
-| Q-026 | 260415-120000 | OPEN | License mismatch: `package.json` declares MIT but `LICENSE` file is GNU GPL v3 | Decide which applies and update the other. README also says MIT. |
+| Q-005 | 260415-120000 | CLOSED | PWA service worker caching stale app shell after updates | **Fixed 260416**: Cache name now includes `APP_VERSION`. Update banner includes a Reload button that triggers `SKIP_WAITING`. |
+| Q-026 | 260415-120000 | CLOSED | License mismatch: `package.json` declares MIT but `LICENSE` file is GNU GPL v3 | **Fixed 260416**: `package.json` and `README.md` updated to GPL-3.0 to match `LICENSE`. |
 
 ---
 
@@ -78,7 +78,7 @@ Settings (⚙️) → User Management → click Delete next to the user. The `ad
 |----|----------|--------|-------|-------|
 | Q-006 | 260415-120000 | OPEN | Rich text editing in Action field: contenteditable vs textarea — which to use | contenteditable is richer but harder to sanitize. textarea with markdown-lite is safer for MVP. Decide before implementation. |
 | Q-007 | 260415-120000 | OPEN | Date format mismatch: spreadsheet uses `yymmdd` prefix in notes text (e.g. `260415 - ...`) but due dates are `YYYY-MM-DD` | App must parse both. Display consistently as `DD MMM YYYY` in UI. Store as ISO internally. |
-| Q-008 | 260415-120000 | OPEN | OPEN/CLOSED toggle must gray out entire project row — CSS state needs to be reliable across themes | Test in both Day and Night mode. Closed projects should still be visible/filterable, not hidden. |
+| Q-008 | 260415-120000 | CLOSED | OPEN/CLOSED toggle must gray out entire project row — CSS state needs to be reliable across themes | **Fixed 260416**: Added `.project-card.closed` styles for details, notes, actions, and due dates across both Day and Night themes. |
 | Q-009 | 260415-120000 | OPEN | File attachments in Notes: local file upload stores base64 in JSON — large files will bloat the JSON | For MVP: store filename + file as base64 only if < 1MB. Warn user for larger files. Cloud sync path is the real solution (post-MVP). |
 | Q-010 | 260415-120000 | OPEN | Action column width is user-adjustable — must persist per session | Save column widths to `localStorage` under `settings.columnWidths`. |
 | Q-011 | 260415-120000 | OPEN | Phone mode vs Desktop mode: toggling mid-session must not lose unsaved edits | Autosave on every change (debounced 500ms). Toggle is purely a layout switch. |

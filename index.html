@@ -91,6 +91,24 @@
                 </div>
                 <div class="settings-section">
                     <h3>User Management</h3>
+                    <div id="add-user-form-container" class="hidden">
+                        <form id="add-user-form" style="margin-bottom: 16px;">
+                            <div class="form-group">
+                                <input type="text" id="new-username" placeholder="Username" required>
+                            </div>
+                            <div class="form-group">
+                                <input type="password" id="new-password" placeholder="Password" required>
+                            </div>
+                            <div class="form-group">
+                                <select id="new-role" required>
+                                    <option value="viewer">Viewer</option>
+                                    <option value="commenter">Commenter</option>
+                                    <option value="editor">Editor</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-small">Add User</button>
+                        </form>
+                    </div>
                     <div id="users-list"></div>
                 </div>
             </div>

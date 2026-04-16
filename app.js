@@ -51,6 +51,11 @@ const importFileInput = document.getElementById('import-file');
 const saveVersionBtn = document.getElementById('save-version-btn');
 const versionsList = document.getElementById('versions-list');
 const usersList = document.getElementById('users-list');
+const addUserFormContainer = document.getElementById('add-user-form-container');
+const addUserForm = document.getElementById('add-user-form');
+const newUsernameInput = document.getElementById('new-username');
+const newPasswordInput = document.getElementById('new-password');
+const newRoleInput = document.getElementById('new-role');
 
 // ------------------------------------------------------------
 // Service Worker Registration
@@ -65,7 +70,7 @@ if ('serviceWorker' in navigator) {
                     const newWorker = registration.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showNotification('New version available. Refresh to update.');
+                            showUpdateNotification(newWorker);
                         }
                     });
                 });
@@ -397,6 +402,7 @@ function handleProjectSubmit(event) {
     
     closeProjectModal();
     renderProjects();
+    checkStorageWarning();
 }
 
 // ------------------------------------------------------------
@@ -455,6 +461,7 @@ function handleActionSubmit(event) {
     
     closeActionModal();
     renderProjects();
+    checkStorageWarning();
 }
 
 // ------------------------------------------------------------
@@ -510,6 +517,12 @@ function renderVersions() {
 function renderUsers() {
     const users = store.config.users || [];
     
+    if (currentUser?.username === 'admin') {
+        addUserFormContainer.classList.remove('hidden');
+    } else {
+        addUserFormContainer.classList.add('hidden');
+    }
+    
     let html = '<ul style="list-style: none; padding: 0; margin-top: 12px;">';
     users.forEach(user => {
         html += `
@@ -560,11 +573,13 @@ function handleClick(event) {
             if (confirm('Delete this project?')) {
                 store.deleteProject(projectId);
                 renderProjects();
+                checkStorageWarning();
             }
             break;
         case 'toggle-status':
             store.toggleProjectStatus(projectId);
             renderProjects();
+            checkStorageWarning();
             break;
         case 'toggle-project':
             if (collapsedProjects.has(projectId)) {
@@ -586,6 +601,7 @@ function handleClick(event) {
             if (confirm('Delete this action?')) {
                 store.deleteAction(projectId, actionId);
                 renderProjects();
+                checkStorageWarning();
             }
             break;
         
@@ -603,6 +619,7 @@ function handleClick(event) {
                 store.restoreVersion(versionId);
                 renderProjects();
                 closeSettings();
+                checkStorageWarning();
             }
             break;
         case 'delete-user':
@@ -684,6 +701,7 @@ function handleCommentSubmit(e) {
     }
     renderCommentsList(comments);
     renderProjects(); // update comment count badges
+    checkStorageWarning();
 }
 
 // ------------------------------------------------------------
@@ -716,6 +734,7 @@ function handleFileImport(event) {
         if (store.importData(content)) {
             alert('Data imported successfully!');
             renderProjects();
+            checkStorageWarning();
         } else {
             alert('Failed to import data. Invalid format.');
         }
@@ -804,7 +823,68 @@ document.addEventListener('DOMContentLoaded', () => {
             closeSettings();
         }
     });
+    
+    addUserForm.addEventListener('submit', handleAddUserSubmit);
 });
+
+function handleAddUserSubmit(event) {
+    event.preventDefault();
+    
+    const username = newUsernameInput.value.trim();
+    const password = newPasswordInput.value;
+    const role = newRoleInput.value;
+    
+    if (!username || !password) {
+        alert('Username and password are required');
+        return;
+    }
+    
+    if (store.getUser(username)) {
+        alert('User already exists');
+        return;
+    }
+    
+    store.addUser({ username, password, role });
+    addUserForm.reset();
+    renderUsers();
+    showNotification('User added successfully');
+}
+
+function checkStorageWarning() {
+    const stats = store.checkStorageSize();
+    if (stats.warning) {
+        showNotification(`Warning: localStorage is ${stats.sizeMb.toFixed(2)} MB. Consider exporting and archiving old data.`);
+    }
+}
+
+function showUpdateNotification(newWorker) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--accent-color);
+        color: white;
+        padding: 16px 20px;
+        border-radius: var(--radius);
+        z-index: 9999;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    `;
+    notification.innerHTML = `
+        <span>New version available.</span>
+        <button class="btn btn-small" style="background: white; color: var(--accent-color); border: none;">Reload</button>
+    `;
+    notification.querySelector('button').addEventListener('click', () => {
+        if (newWorker && newWorker.state === 'installed') {
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+        }
+        window.location.reload();
+    });
+    document.body.appendChild(notification);
+}
 
 // ------------------------------------------------------------
 // Offline detection
