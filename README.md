@@ -1,4 +1,4 @@
-# Plant Operations Meeting Monitor (POMM)
+# Project Monitoring Log (PLM)
 
 A lightweight, portable, PWA-capable project monitoring tool that replaces the Google Sheets "OTHER MATTERS" workflow. Optimized for low-spec PCs, mobile phones, and offline use.
 
