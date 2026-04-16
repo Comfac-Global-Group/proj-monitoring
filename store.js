@@ -55,10 +55,39 @@ function timestampToIso(timestamp) {
 }
 
 /**
+ * Convert yymmdd to YYYY-MM-DD (for HTML date inputs)
+ */
+function yymmddToIso(yymmdd) {
+    if (!yymmdd) return '';
+    if (yymmdd.length === 10 && yymmdd.includes('-')) return yymmdd; // already ISO
+    if (yymmdd.length !== 6 || !/^\d{6}$/.test(yymmdd)) return '';
+    const year = '20' + yymmdd.slice(0, 2);
+    const month = yymmdd.slice(2, 4);
+    const day = yymmdd.slice(4, 6);
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * Convert YYYY-MM-DD to yymmdd (for storage)
+ */
+function isoToYymmdd(isoString) {
+    if (!isoString) return '';
+    if (isoString.length === 6 && /^\d{6}$/.test(isoString)) return isoString; // already yymmdd
+    const parts = isoString.split('-');
+    if (parts.length !== 3) return '';
+    return parts[0].slice(-2) + parts[1] + parts[2];
+}
+
+/**
  * Format date for display: DD MMM YYYY
  */
 function formatDisplayDate(dateString) {
-    const date = new Date(dateString);
+    if (!dateString) return '';
+    let iso = dateString;
+    if (dateString.length === 6 && /^\d{6}$/.test(dateString)) {
+        iso = yymmddToIso(dateString);
+    }
+    const date = new Date(iso);
     const day = date.getDate();
     const month = date.toLocaleString('default', { month: 'short' });
     const year = date.getFullYear();
@@ -186,6 +215,12 @@ class Store {
         if (config) {
             try {
                 this.config = JSON.parse(config);
+                // Migrate missing settings fields
+                if (typeof this.config.settings?.closedSectionCollapsed !== 'boolean') {
+                    this.config.settings = this.config.settings || {};
+                    this.config.settings.closedSectionCollapsed = false;
+                    this._saveConfig();
+                }
             } catch (e) {
                 console.error('Failed to parse config, loading default');
                 this._loadDefaultConfig();
@@ -219,7 +254,8 @@ class Store {
                 theme: 'light',
                 layout: 'desktop',
                 cloudProvider: 'none',
-                cloudConfig: {}
+                cloudConfig: {},
+                closedSectionCollapsed: false
             }
         };
         this._saveConfig();
@@ -379,6 +415,7 @@ class Store {
             due_date: actionData.due_date || '',
             owner: actionData.owner || '',
             issue: actionData.issue || '',
+            done: actionData.done || false,
             comments: [],
             log_entries: parseActionLog(text),
             created_at: timestamp,
@@ -407,7 +444,7 @@ class Store {
         if (updates.hasOwnProperty('text') && action.text !== updates.text) {
             updates.log_entries = parseActionLog(updates.text);
         }
-        ['text', 'due_date', 'owner', 'issue'].forEach(field => {
+        ['text', 'due_date', 'owner', 'issue', 'done'].forEach(field => {
             if (updates.hasOwnProperty(field) && action[field] !== updates[field]) {
                 this._appendChangeLog(project, user, `action.${field}`, action[field], updates[field], timestamp);
             }
@@ -815,4 +852,4 @@ class Store {
 const store = new Store();
 
 // Export store and utilities
-export { store, generateId, getTimestamp, isoToTimestamp, timestampToIso, formatDisplayDate, parseActionLog };
+export { store, generateId, getTimestamp, isoToTimestamp, timestampToIso, formatDisplayDate, parseActionLog, yymmddToIso, isoToYymmdd };

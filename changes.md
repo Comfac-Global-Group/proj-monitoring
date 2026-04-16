@@ -8,11 +8,28 @@
 
 ## Current Version
 
-**v0.3.0-hotfix3** — `260416-1030` — Agent: Kimi Code CLI — **DONE**
+**v0.3.1** — `260416-1532` — Agent: Kimi Code CLI — **DONE**
 
 ---
 
 ## Version History
+
+### v0.3.1 | 260416-1532 | DONE
+**Agent:** Kimi Code CLI
+**Changes:**
+- Q-031: XLSX action log splitting — each `yymmdd - ...` line in the `ACTION TO BE TAKEN` column now becomes its own Action object with `created_at = yymmdd-hhmmss`.
+- Q-032: Closed Projects section — closed projects no longer gray out inline; they accumulate in a dedicated collapsible section at the bottom of the project list.
+- Updated `scripts/xlsx-to-json.py` to split action lines and regenerated `other-matters-import.json`.
+- Added `closedSectionCollapsed` setting persistence in `store.js`.
+- Added CSS for closed-projects section and done-action toggles in `styles.css`.
+
+**What you should see:**
+- Version badge: `v0.3.1`
+- Service worker cache: `pml-260416-1532`
+- Imported legacy data shows individual Actions per weekly update line
+- Closed projects render in a separate "Closed Projects" collapsible section below open projects
+
+---
 
 ### v0.2.0 | 260416-0951 | DONE
 **Agent:** Kimi Code CLI  

@@ -1,5 +1,5 @@
 // Project Monitoring Log (PML) - Main Application
-import { store, formatDisplayDate } from './store.js';
+import { store, formatDisplayDate, yymmddToIso, isoToYymmdd } from './store.js';
 
 // ------------------------------------------------------------
 // State
@@ -10,6 +10,8 @@ let currentActionId = null;
 let isPhoneLayout = false;
 const collapsedProjects = new Set();
 const collapsedLogs = new Set();
+const collapsedDoneActions = new Set();
+let closedSectionCollapsed = store.getSettings().closedSectionCollapsed || false;
 let commentContext = { projectId: null, actionId: null };
 let syncIntervalId = null;
 let lastSyncResult = { status: 'idle', message: '' };
@@ -53,6 +55,7 @@ const actionTextInput = document.getElementById('action-text');
 const actionDueDateInput = document.getElementById('action-due-date');
 const actionOwnerInput = document.getElementById('action-owner');
 const actionIssueInput = document.getElementById('action-issue');
+const actionDoneInput = document.getElementById('action-done');
 const actionCancelBtn = document.getElementById('action-cancel');
 const overlay = document.getElementById('overlay');
 const commentModal = document.getElementById('comment-modal');
@@ -291,10 +294,10 @@ function applyFilters(projects) {
             if (!actionOwnerMatch && !p.title.toLowerCase().includes(ownerLower)) return false;
         }
         if (filterState.dateFrom || filterState.dateTo) {
-            const from = filterState.dateFrom;
-            const to = filterState.dateTo;
+            const from = isoToYymmdd(filterState.dateFrom);
+            const to = isoToYymmdd(filterState.dateTo);
             const dateMatch = (p.actions || []).some(a => {
-                const d = a.due_date;
+                const d = isoToYymmdd(a.due_date);
                 if (!d) return false;
                 if (from && d < from) return false;
                 if (to && d > to) return false;
@@ -315,8 +318,8 @@ function applySort(projects) {
         }
         switch (sortValue) {
             case 'due_date': {
-                const ad = (a.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
-                const bd = (b.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
+                const ad = (a.actions || []).map(x => isoToYymmdd(x.due_date)).filter(Boolean).sort()[0] || '999999';
+                const bd = (b.actions || []).map(x => isoToYymmdd(x.due_date)).filter(Boolean).sort()[0] || '999999';
                 return ad.localeCompare(bd);
             }
             case 'updated':
@@ -327,8 +330,8 @@ function applySort(projects) {
                 return (a.status || '').localeCompare(b.status || '');
             default: {
                 // Default: open first, soonest due date
-                const ad = (a.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
-                const bd = (b.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
+                const ad = (a.actions || []).map(x => isoToYymmdd(x.due_date)).filter(Boolean).sort()[0] || '999999';
+                const bd = (b.actions || []).map(x => isoToYymmdd(x.due_date)).filter(Boolean).sort()[0] || '999999';
                 return ad.localeCompare(bd);
             }
         }
@@ -363,9 +366,11 @@ function clearFilters() {
 function renderProjects() {
     const allProjects = store.getProjects();
     const filtered = applyFilters(allProjects);
-    const projects = applySort(filtered);
+    const sorted = applySort(filtered);
+    const openProjects = sorted.filter(p => p.status === 'open');
+    const closedProjects = sorted.filter(p => p.status === 'closed');
 
-    if (projects.length === 0) {
+    if (openProjects.length === 0 && closedProjects.length === 0) {
         projectsList.innerHTML = `
             <div class="empty-state">
                 <p>No projects match your filters. <button class="btn btn-small btn-secondary" id="clear-filters-inline">Clear filters</button></p>
@@ -376,73 +381,98 @@ function renderProjects() {
     }
 
     let html = '';
-    projects.forEach(project => {
-        const isClosed = project.status === 'closed';
-        const isCollapsed = collapsedProjects.has(project.id);
-        const actionsHtml = renderActions(project);
 
+    if (openProjects.length === 0) {
+        html += `<div class="empty-state"><p>No open projects.</p></div>`;
+    } else {
+        html += '<div class="open-projects-list">';
+        openProjects.forEach(project => {
+            html += renderProjectCard(project);
+        });
+        html += '</div>';
+    }
+
+    if (closedProjects.length > 0) {
         html += `
-            <div class="project-card ${isClosed ? 'closed' : ''}" data-project-id="${project.id}">
-                <div class="project-header">
-                    <div class="project-title-wrapper">
-                        <button class="project-toggle" data-action="toggle-project" data-project-id="${project.id}">
-                            ${isCollapsed ? '▶' : '▼'}
-                        </button>
-                        <h3 class="project-title">${escapeHtml(project.title)}</h3>
-                        ${project.project_due_date ? `<span class="project-due-badge">Due ${formatDisplayDate(project.project_due_date)}</span>` : ''}
-                    </div>
-                    <div class="project-status-toggle">
-                        <span class="status-badge ${isClosed ? 'closed' : 'open'}">${project.status.toUpperCase()}</span>
-                        ${currentUser?.role === 'editor' ? `
-                            <button class="btn btn-small" data-action="toggle-status" data-project-id="${project.id}">
-                                ${isClosed ? 'Reopen' : 'Close'}
-                            </button>
-                        ` : ''}
-                    </div>
+            <div class="closed-projects-section">
+                <div class="closed-projects-header" data-action="toggle-closed-section">
+                    <h3>Closed Projects (${closedProjects.length})</h3>
+                    <button class="btn btn-small btn-secondary">${closedSectionCollapsed ? '▶ Show' : '▼ Hide'}</button>
                 </div>
-
-                <div class="project-body ${isCollapsed ? 'hidden' : ''}">
-                    <div class="project-details">
-                        ${escapeHtml(project.details)}
-                    </div>
-
-                    ${project.notes ? `
-                        <div class="project-notes">
-                            <h4>Notes</h4>
-                            <div class="project-notes-content">${linkifyText(escapeHtml(project.notes))}</div>
-                            ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
-                                <button class="action-comments" data-action="add-notes-comment" data-project-id="${project.id}">
-                                    💬 Comment${project.notesComments?.length ? ` (${project.notesComments.length})` : ''}
-                                </button>
-                            ` : ''}
-                        </div>
-                    ` : ''}
-
-                    <div class="actions-list">
-                        ${actionsHtml}
-                        ${currentUser?.role === 'editor' ? `
-                            <button class="btn btn-secondary add-action-btn" data-action="add-action" data-project-id="${project.id}">
-                                + Add Action
-                            </button>
-                        ` : ''}
-                    </div>
-
-                    ${currentUser?.role === 'editor' ? `
-                        <div class="project-actions" style="margin-top: 16px; display: flex; gap: 8px;">
-                            <button class="btn btn-small" data-action="edit-project" data-project-id="${project.id}">
-                                Edit
-                            </button>
-                            <button class="btn btn-small" data-action="delete-project" data-project-id="${project.id}">
-                                Delete
-                            </button>
-                        </div>
-                    ` : ''}
+                <div class="closed-projects-list ${closedSectionCollapsed ? 'hidden' : ''}">
+                    ${closedProjects.map(project => renderProjectCard(project)).join('')}
                 </div>
             </div>
         `;
-    });
+    }
 
     projectsList.innerHTML = html;
+}
+
+function renderProjectCard(project) {
+    const isClosed = project.status === 'closed';
+    const isCollapsed = collapsedProjects.has(project.id);
+    const actionsHtml = renderActions(project);
+
+    return `
+        <div class="project-card ${isClosed ? 'closed' : ''}" data-project-id="${project.id}">
+            <div class="project-header">
+                <div class="project-title-wrapper">
+                    <button class="project-toggle" data-action="toggle-project" data-project-id="${project.id}">
+                        ${isCollapsed ? '▶' : '▼'}
+                    </button>
+                    <h3 class="project-title">${escapeHtml(project.title)}</h3>
+                    ${project.project_due_date ? `<span class="project-due-badge">Due ${formatDisplayDate(project.project_due_date)}</span>` : ''}
+                </div>
+                <div class="project-status-toggle">
+                    <span class="status-badge ${isClosed ? 'closed' : 'open'}">${project.status.toUpperCase()}</span>
+                    ${currentUser?.role === 'editor' ? `
+                        <button class="btn btn-small" data-action="toggle-status" data-project-id="${project.id}">
+                            ${isClosed ? 'Reopen' : 'Close'}
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+
+            <div class="project-body ${isCollapsed ? 'hidden' : ''}">
+                <div class="project-details">
+                    ${escapeHtml(project.details)}
+                </div>
+
+                ${project.notes ? `
+                    <div class="project-notes">
+                        <h4>Notes</h4>
+                        <div class="project-notes-content">${linkifyText(escapeHtml(project.notes))}</div>
+                        ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
+                            <button class="action-comments" data-action="add-notes-comment" data-project-id="${project.id}">
+                                💬 Comment${project.notesComments?.length ? ` (${project.notesComments.length})` : ''}
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : ''}
+
+                <div class="actions-list">
+                    ${actionsHtml}
+                    ${currentUser?.role === 'editor' ? `
+                        <button class="btn btn-secondary add-action-btn" data-action="add-action" data-project-id="${project.id}">
+                            + Add Action
+                        </button>
+                    ` : ''}
+                </div>
+
+                ${currentUser?.role === 'editor' ? `
+                    <div class="project-actions" style="margin-top: 16px; display: flex; gap: 8px;">
+                        <button class="btn btn-small" data-action="edit-project" data-project-id="${project.id}">
+                            Edit
+                        </button>
+                        <button class="btn btn-small" data-action="delete-project" data-project-id="${project.id}">
+                            Delete
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
 }
 
 function renderActions(project) {
@@ -453,16 +483,31 @@ function renderActions(project) {
     let html = '';
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const doneActions = project.actions.filter(a => a.done);
+    const undoneActions = project.actions.filter(a => !a.done);
+    const hideDone = collapsedDoneActions.has(project.id);
+    const visibleActions = [...undoneActions, ...(hideDone ? [] : doneActions)];
 
-    project.actions.forEach(action => {
+    if (doneActions.length > 0) {
+        html += `
+            <div class="done-actions-toggle">
+                <button class="btn btn-small btn-text" data-action="toggle-done-actions" data-project-id="${project.id}">
+                    ${hideDone ? `▶ Show done actions (${doneActions.length})` : '▼ Hide done actions'}
+                </button>
+            </div>
+        `;
+    }
+
+    visibleActions.forEach(action => {
         let dueDateClass = '';
         let dueDateText = '';
         if (action.due_date) {
             dueDateText = formatDisplayDate(action.due_date);
-            if (action.due_date <= todayStr) {
+            const isoDue = yymmddToIso(action.due_date);
+            if (isoDue && isoDue <= todayStr) {
                 dueDateClass = 'overdue';
-            } else {
-                const daysLeft = Math.ceil((new Date(action.due_date) - today) / (1000 * 60 * 60 * 24));
+            } else if (isoDue) {
+                const daysLeft = Math.ceil((new Date(isoDue) - today) / (1000 * 60 * 60 * 24));
                 if (daysLeft <= 3) dueDateClass = 'due-soon';
             }
         }
@@ -471,13 +516,14 @@ function renderActions(project) {
         const logsCollapsed = collapsedLogs.has(action.id);
 
         html += `
-            <div class="action-item" data-action-id="${action.id}">
+            <div class="action-item ${action.done ? 'done' : ''}" data-action-id="${action.id}">
                 <div class="action-main">
                     <div class="action-text">${escapeHtml(action.text)}</div>
                     <div class="action-meta-row">
                         ${action.due_date ? `<span class="action-due-date ${dueDateClass}">📅 ${dueDateText}</span>` : ''}
                         ${action.owner ? `<span class="action-owner">👤 ${escapeHtml(action.owner)}</span>` : ''}
                         ${action.issue ? `<span class="action-issue">⚠️ ${escapeHtml(action.issue)}</span>` : ''}
+                        ${action.created_at ? `<span class="action-timestamp">🕒 ${escapeHtml(action.created_at.slice(0,6))}</span>` : ''}
                     </div>
                     ${hasLogs ? `
                         <div class="action-log">
@@ -531,7 +577,7 @@ function openProjectModal(projectId = null) {
         projectTitleInput.value = project.title;
         projectDetailsInput.value = project.details;
         projectNotesInput.value = project.notes;
-        projectDueDateInput.value = project.project_due_date || '';
+        projectDueDateInput.value = yymmddToIso(project.project_due_date) || '';
         projectStatusInput.checked = project.status === 'open';
     } else {
         projectTitleInput.value = '';
@@ -556,7 +602,7 @@ function handleProjectSubmit(event) {
         title: projectTitleInput.value.trim(),
         details: projectDetailsInput.value.trim(),
         notes: projectNotesInput.value.trim(),
-        project_due_date: projectDueDateInput.value
+        project_due_date: isoToYymmdd(projectDueDateInput.value)
     };
     if (!projectData.title) {
         alert('Project title is required');
@@ -586,14 +632,16 @@ function openActionModal(projectId, actionId = null) {
         const action = project.actions.find(a => a.id === actionId);
         if (!action) return;
         actionTextInput.value = action.text;
-        actionDueDateInput.value = action.due_date || '';
+        actionDueDateInput.value = yymmddToIso(action.due_date) || '';
         actionOwnerInput.value = action.owner || '';
         actionIssueInput.value = action.issue || '';
+        actionDoneInput.checked = action.done || false;
     } else {
         actionTextInput.value = '';
         actionDueDateInput.value = '';
         actionOwnerInput.value = '';
         actionIssueInput.value = '';
+        actionDoneInput.checked = false;
     }
     actionModal.classList.remove('hidden');
     overlay.classList.remove('hidden');
@@ -610,9 +658,10 @@ function handleActionSubmit(event) {
     event.preventDefault();
     const actionData = {
         text: actionTextInput.value.trim(),
-        due_date: actionDueDateInput.value,
+        due_date: isoToYymmdd(actionDueDateInput.value),
         owner: actionOwnerInput.value.trim(),
-        issue: actionIssueInput.value.trim()
+        issue: actionIssueInput.value.trim(),
+        done: actionDoneInput.checked
     };
     if (!actionData.text) {
         alert('Action text is required');
@@ -934,6 +983,19 @@ function handleClick(event) {
                 collapsedLogs.delete(logId);
             } else {
                 collapsedLogs.add(logId);
+            }
+            renderProjects();
+            break;
+        case 'toggle-closed-section':
+            closedSectionCollapsed = !closedSectionCollapsed;
+            store.updateSettings({ closedSectionCollapsed });
+            renderProjects();
+            break;
+        case 'toggle-done-actions':
+            if (collapsedDoneActions.has(projectId)) {
+                collapsedDoneActions.delete(projectId);
+            } else {
+                collapsedDoneActions.add(projectId);
             }
             renderProjects();
             break;

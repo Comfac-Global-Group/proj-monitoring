@@ -878,3 +878,45 @@ body {
         justify-content: flex-end;
     }
 }
+
+
+/* Done actions */
+.done-actions-toggle {
+    margin-bottom: 8px;
+}
+.action-item.done .action-text {
+    text-decoration: line-through;
+    color: var(--text-tertiary);
+}
+.action-item.done .action-meta-row {
+    opacity: 0.7;
+}
+
+/* Closed projects section */
+.closed-projects-section {
+    margin-top: 32px;
+    border-top: 2px dashed var(--border-color);
+    padding-top: 16px;
+}
+.closed-projects-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    margin-bottom: 16px;
+    position: sticky;
+    bottom: 0;
+}
+.closed-projects-header h3 {
+    font-size: 1rem;
+    margin: 0;
+    color: var(--text-secondary);
+}
+.closed-projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}

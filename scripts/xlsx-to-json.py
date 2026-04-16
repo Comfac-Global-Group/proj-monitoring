@@ -14,9 +14,9 @@ Mapping:
     ITEMS / PROJ        -> title
     DETAILS             -> details
     OWNER               -> actions[].owner
-    ACTION TO BE TAKEN  -> actions[].text  (with embedded yymmdd log entries)
-    ACTION DUE DATE     -> actions[].due_date
-    PROJ DUE DATE       -> project_due_date
+    ACTION TO BE TAKEN  -> split into one Action per yymmdd-prefixed line
+    ACTION DUE DATE     -> actions[].due_date (yymmdd format)
+    PROJ DUE DATE       -> project_due_date (yymmdd format)
     ISSUE / CAUSE OF DELAY -> actions[].issue
     REMARKS             -> notes
     LINK                -> appended to notes
@@ -40,30 +40,29 @@ def get_timestamp():
 
 
 def parse_date(value):
-    """Return YYYY-MM-DD string from datetime or string, or None."""
+    """Return yymmdd string from datetime or string, or None."""
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d")
+        return f"{value.year % 100:02d}{value.month:02d}{value.day:02d}"
     if isinstance(value, str):
         value = value.strip()
         if not value:
             return None
-        # Try common formats
         for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%m-%d-%Y"):
             try:
-                return datetime.strptime(value, fmt).strftime("%Y-%m-%d")
+                d = datetime.strptime(value, fmt)
+                return f"{d.year % 100:02d}{d.month:02d}{d.day:02d}"
             except ValueError:
                 pass
     return None
 
 
-def parse_log_entries(text):
-    """Extract yymmdd-prefixed lines from action text."""
+def parse_log_lines(text):
+    """Extract yymmdd-prefixed lines from action text into list of (date, text)."""
     entries = []
     if not text:
         return entries
-    # Pattern: 6 digits, optional whitespace, optional dash/em-dash, optional whitespace, then text
     log_pattern = re.compile(r"^(\d{6})\s*[-–]?\s*(.*)$")
     for line in text.splitlines():
         line = line.strip()
@@ -71,10 +70,7 @@ def parse_log_entries(text):
             continue
         m = log_pattern.match(line)
         if m:
-            entries.append({
-                "date": m.group(1),
-                "text": m.group(2).strip()
-            })
+            entries.append((m.group(1), m.group(2).strip()))
     return entries
 
 
@@ -113,7 +109,20 @@ def convert_sheet(wb_path, sheet_name="OTHER MATTERS"):
         status = "closed" if done_flag is True else "open"
 
         actions = []
-        if action_text:
+        log_lines = parse_log_lines(str(action_text))
+        if log_lines:
+            for i, (date, text) in enumerate(log_lines):
+                actions.append({
+                    "id": generate_id(),
+                    "text": text,
+                    "due_date": action_due_date if i == len(log_lines) - 1 else "",
+                    "owner": str(owner).strip() if owner else "",
+                    "issue": str(issue).strip() if issue else "",
+                    "comments": [],
+                    "created_at": f"{date}-000000",
+                    "updated_at": f"{date}-000000"
+                })
+        else:
             actions.append({
                 "id": generate_id(),
                 "text": str(action_text).strip(),
@@ -121,7 +130,6 @@ def convert_sheet(wb_path, sheet_name="OTHER MATTERS"):
                 "owner": str(owner).strip() if owner else "",
                 "issue": str(issue).strip() if issue else "",
                 "comments": [],
-                "log_entries": parse_log_entries(str(action_text)),
                 "created_at": timestamp,
                 "updated_at": timestamp
             })
@@ -135,6 +143,7 @@ def convert_sheet(wb_path, sheet_name="OTHER MATTERS"):
             "project_due_date": proj_due_date or "",
             "actions": actions,
             "notesComments": [],
+            "change_log": [],
             "created_at": timestamp,
             "updated_at": timestamp
         }

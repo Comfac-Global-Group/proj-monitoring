@@ -1,10 +1,10 @@
 # Functional Requirements Document (FRD)
-**Project:** Plant Operations Meeting Monitor (POMM)
-**Repo:** https://github.com/Comfac-Global-Group/proj-monitoring
-**Version:** 0.1.0-mvp
-**Status:** OPEN
-**Created:** 260415-120000
-**Last Updated:** 260415-120000
+**Project:** Plant Operations Meeting Monitor (POMM)  
+**Repo:** https://github.com/Comfac-Global-Group/proj-monitoring  
+**Version:** 0.3.0  
+**Status:** OPEN  
+**Created:** 260415-120000  
+**Last Updated:** 260416-150000
 
 ---
 
@@ -57,7 +57,10 @@ A lightweight, portable, PWA-capable project monitoring tool that replaces the G
   "status": "open" | "closed",
   "details": "short description / details",
   "notes": "rich text / links / file refs",
+  "project_due_date": "yymmdd",
   "actions": [ ...Action[] ],
+  "notesComments": [ ...Comment[] ],
+  "change_log": [ ...ChangeLogEntry[] ],
   "created_at": "yymmdd-hhmmss",
   "updated_at": "yymmdd-hhmmss"
 }
@@ -69,12 +72,18 @@ A lightweight, portable, PWA-capable project monitoring tool that replaces the G
 {
   "id": "uuid",
   "text": "rich text action description",
-  "due_date": "YYYY-MM-DD",
+  "due_date": "yymmdd",
+  "owner": "Owner Name",
+  "issue": "Cause of delay",
   "comments": [ ...Comment[] ],
   "created_at": "yymmdd-hhmmss",
   "updated_at": "yymmdd-hhmmss"
 }
 ```
+
+> **Date standard:** All dates stored in the app use `yymmdd` (2-digit year, month, day). The UI translates to/from `YYYY-MM-DD` when binding to HTML `<input type="date">`.
+
+> **Action splitting:** When importing from the "OTHER MATTERS" spreadsheet, each `yymmdd - text` line in the `ACTION TO BE TAKEN` column becomes its own Action. The `yymmdd` prefix becomes the Action's `created_at` and `updated_at` timestamp.
 
 ### 4.3 Comment
 
@@ -87,7 +96,19 @@ A lightweight, portable, PWA-capable project monitoring tool that replaces the G
 }
 ```
 
-### 4.4 Notes (on Project)
+### 4.4 ChangeLogEntry
+
+```json
+{
+  "user": "username",
+  "datetime": "yymmdd-hhmmss",
+  "field": "title",
+  "old_value": "old",
+  "new_value": "new"
+}
+```
+
+### 4.5 Notes (on Project)
 
 ```json
 {
@@ -113,7 +134,9 @@ A lightweight, portable, PWA-capable project monitoring tool that replaces the G
 
 ### 5.2 Project List (main view)
 
-Each row represents one PROJECT:
+Open projects appear in the main list. Closed projects are accumulated in a separate **"Closed Projects"** section at the bottom.
+
+**Main list (Open projects):**
 
 ```
 [ ▶ ] PROJECT TITLE          [OPEN/CLOSED toggle]    NOTES (collapsed)
@@ -123,18 +146,34 @@ Each row represents one PROJECT:
 ```
 
 - **PROJECT** row: shows title, open/closed toggle, collapsed notes.
-- **OPEN/CLOSED toggle**: clicking closes/grays out the project (soft delete, not remove).
+- **OPEN/CLOSED toggle**: clicking closes/grays out the project and moves it to the Closed Projects section.
 - **Expand/Collapse**: clicking the project row expands to show actions.
 - **[+ Add Action]** button: adds a new Action + Due Date row inside the project.
+
+**Closed Projects section:**
+- Appears below the main project list.
+- Has a sticky header with the count of closed projects and a **collapse/expand** toggle.
+- When collapsed, only the header is visible.
+- When expanded, closed projects render using the same card styling (grayed out).
+- The collapse state is persisted in `localStorage` under `settings.closedSectionCollapsed`.
 
 ### 5.3 Action Row
 
 - **Rich text** editable field; wraps text; column width adjustable in header.
 - **Expands** when selected/active; **compresses** when deselected.
-- **Due Date**: inline calendar picker (simple, native or minimal custom).
+- **Due Date**: inline calendar picker. Stored as `yymmdd`; displayed via `DD MMM YYYY`.
 - **💬 Comment bubble**: opens comment thread for this action (Commenter role can comment).
+- **Owner badge**: displays assignee inline.
+- **Issue badge**: displays cause of delay inline.
+- **Done actions**: individual actions can be marked done and collapsed. Long-running projects may accumulate 50+ actions; done actions should be collapsible to reduce clutter.
 
-### 5.4 Notes Field (Project-level)
+### 5.4 Action Timeline & Collapsing
+
+- Each Action displays its `created_at` date as a small timestamp badge.
+- Done actions (those with `status === 'done'` or manually collapsed by the user) can be hidden behind a **"Show done actions (N)"** toggle inside the project card.
+- The toggle state is per-project and resets on reload (or can be persisted in `sessionStorage` if implemented).
+
+### 5.5 Notes Field (Project-level)
 
 - Same line as PROJECT header, collapsed by default.
 - Expands when selected.
@@ -142,14 +181,16 @@ Each row represents one PROJECT:
 - Uploaded docs: download links rendered inline.
 - **💬 Comment bubble**: Commenter-only comments on notes.
 
-### 5.5 Settings Panel
+### 5.6 Settings Panel
 
 - Import / Export all projects as `.json`
+- Save As (custom filename)
 - Save / Load project state
 - Save named versions (snapshots) with timestamp label
 - Version selector: choose which saved version to load
 - Sync target config: Google Drive / Nextcloud / Seafile credentials
 - User management (add/edit roles for Editor/Commenter/Viewer)
+- Audit / Change Log per project (exportable as CSV)
 
 ---
 
@@ -202,6 +243,11 @@ Each row represents one PROJECT:
 All timestamps use format: `yymmdd-hhmmss`  
 Example: `260415-143022` = April 15, 2026, 14:30:22
 
+All calendar dates use format: `yymmdd`  
+Example: `260528` = May 28, 2026
+
+> The UI translates `yymmdd` to `YYYY-MM-DD` when binding to native HTML date inputs, and converts back on save.
+
 ---
 
 ## 11. Instructions for DeepSeek
@@ -226,7 +272,7 @@ Example: `260415-143022` = April 15, 2026, 14:30:22
 5. Follow the data model in Section 4 exactly.
    All data reads/writes go through a single `store.js` module.
 
-6. All datetime values use format yymmdd-hhmmss.
+6. All datetime values use format yymmdd-hhmmss; all calendar dates use yymmdd.
 
 7. RBAC: check role before rendering edit controls.
    Viewer sees no edit buttons. Commenter sees only comment bubbles.
@@ -237,7 +283,10 @@ Example: `260415-143022` = April 15, 2026, 14:30:22
 
 9. PWA: add manifest.json and a basic service worker that caches the app shell.
 
-10. Start with the Project list view. Get that right first before anything else.
+10. Closed Projects must render in a separate collapsible section at the bottom.
+    Done actions inside a project must be collapsible.
+
+11. Start with the Project list view. Get that right first before anything else.
 ```
 
 ---
@@ -245,10 +294,7 @@ Example: `260415-143022` = April 15, 2026, 14:30:22
 ## 12. Out of Scope for MVP
 
 See `roadmap.md` for:
-- Advanced filtering / search
 - Multi-user real-time collaboration
 - Backend / database
-- Notifications / reminders
-- Auto-sync (polling)
-- Audit log / full history
-- Import directly from `.xlsx`
+- Advanced theming / branding
+- Import directly from `.xlsx` (use `scripts/xlsx-to-json.py` instead)

@@ -71,6 +71,7 @@ Settings (⚙️) → User Management → click Delete next to the user. The `ad
 | Q-026 | 260415-120000 | CLOSED | License mismatch: `package.json` declares MIT but `LICENSE` file is GNU GPL v3 | **Fixed 260416**: `package.json` and `README.md` updated to GPL-3.0 to match `LICENSE`. |
 | Q-029 | 260416-1028 | CLOSED | Cannot save new or edited actions in v0.3.0 | **Fixed 260416**: `parseActionLog()` used `logPattern.match(line)` instead of `line.match(logPattern)`, causing a TypeError on every action save. |
 | Q-030 | 260416-1029 | CLOSED | Settings panel appears grayed out and unclickable | **Fixed 260416**: `.settings-panel` z-index was 1000, below `.overlay` (1500). Raised settings panel to `z-index: 1600`. |
+| Q-031 | 260416-1500 | OPEN | Real-world data: Canvasing AVR/Transformer shows need for split actions + collapsible done actions | Long-running project with 50+ dated action lines. Each `yymmdd - text` line should be its own Action. Done actions must be collapsible. Closed projects need a separate bottom section. |
 
 ---
 
@@ -123,9 +124,39 @@ Settings (⚙️) → User Management → click Delete next to the user. The `ad
 
 ---
 
+## Real-World Example — QA-031
+
+**Project:** Canvasing AVR/Transformer — facebook  
+**Why it matters:** This single project contains **50+ weekly updates** in the `ACTION TO BE TAKEN` column. It is the canonical example of why the original "one action = one text blob" design fails for long-running projects.
+
+**Raw spreadsheet action text (abbreviated):**
+```
+240731- Requirements and Invite to BID.
+240807 Inventory of machines to be Protected - Spreadsheet with Specification. 2 Rover, 2 LFK, and the Laser Turret.
+240821 - Quotation on Going.
+240828 - 2 quotations. 30KVA units. 130k per machine.
+240904 -follow up quotations.
+240912- 3 quotations. AVR - check Eaton AVRs.
+...
+250507 - Load schedule done. Waiting for EDD
+250514 -Load Schedule per Panel for Quoting the Electrical Works from EDD
+250521 - for NCO creation. for ARF.
+...
+260408 - Plant visit for the various ME Projects on April 10, 2026
+```
+
+**Design requirements derived from this data:**
+1. **Each dated line must be its own Action.** A single action with 50 log entries is unreadable.
+2. **Each Action must carry its `yymmdd` as a timestamp.** When an action is edited or added, it receives a `yymmdd` code.
+3. **Done actions must be collapsible.** After 50 weeks, the action list is overwhelming. Users need a "Show/Hide done actions" toggle per project.
+4. **Closed projects must accumulate in a separate bottom section.** They should not interleave with open projects.
+5. **Due date alerts must be visible.** Even when actions are collapsed, overdue items should show a badge.
+
+---
+
 ## Known Constraints (from source data)
 
 - Source: `PLANT_OPERATIONS_MEETING_NEW__2024__2026.xlsx`, sheet `OTHER MATTERS`
 - Columns mapped: `DONE` (open/closed), `ITEMS/PROJ` (project title), `DETAILS` (description), `ACTION TO BE TAKEN` (action text with embedded yymmdd log), `ACTION DUE DATE` (due date), `REMARKS` (notes), `LINK` (notes links)
-- The "action" field in the spreadsheet is a cumulative log (one cell = many dated entries). The app treats this as rich text for MVP, not parsed entries.
-- `OWNER` column exists in source data — not in MVP scope. Add to roadmap.
+- The "action" field in the spreadsheet is a cumulative log (one cell = many dated entries). The app now parses each `yymmdd - text` line into a separate Action object on import.
+- `OWNER` column exists in source data — now implemented (R-003).
