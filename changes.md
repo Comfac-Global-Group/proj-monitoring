@@ -81,6 +81,9 @@
 **Hotfix 1 (260416-1028):**
 - Fixed `parseActionLog()` bug where `logPattern.match(line)` threw `TypeError` and blocked all action saves/edits. Now uses `line.match(logPattern)`.
 
+**Hotfix 2 (260416-1029):**
+- Fixed Settings panel being covered by the overlay (grayed out / unclickable). Raised `.settings-panel` z-index from 1000 to 1600 so it sits above `.overlay` (1500).
+
 ---
 
 ## Versioning Rules
