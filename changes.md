@@ -8,7 +8,7 @@
 
 ## Current Version
 
-**v0.3.0-hotfix1** — `260416-1028` — Agent: Kimi Code CLI — **DONE**
+**v0.3.0-hotfix3** — `260416-1030` — Agent: Kimi Code CLI — **DONE**
 
 ---
 
@@ -83,6 +83,11 @@
 
 **Hotfix 2 (260416-1029):**
 - Fixed Settings panel being covered by the overlay (grayed out / unclickable). Raised `.settings-panel` z-index from 1000 to 1600 so it sits above `.overlay` (1500).
+
+**Hotfix 3 (260416-1030):**
+- Improved cloud sync error messaging for CORS issues.
+- Added help text for Google Drive and WebDAV configuration.
+- Closed Q-028 (app name) with documentation note.
 
 ---
 

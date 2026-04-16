@@ -12,7 +12,7 @@
 <body>
     <header class="header">
         <div class="header-left">
-            <h1 class="app-title">PML <span class="version-badge" id="version-badge">v0.3.0</span></h1>
+            <h1 class="app-title">PML <span class="version-badge" id="version-badge">v0.3.0-hotfix3</span></h1>
         </div>
         <div class="header-right">
             <span id="sync-status" class="sync-status" title="Sync status">—</span>
@@ -106,10 +106,12 @@
                             <div class="form-group">
                                 <label>OAuth Access Token</label>
                                 <input type="text" id="google-token" placeholder="ya29.xxx">
+                                <p class="help-text">Requires "drive.file" scope. CORS may need to be enabled on the Google API.</p>
                             </div>
                             <div class="form-group">
                                 <label>Drive File ID</label>
                                 <input type="text" id="google-file-id" placeholder="1BxiMVs0XRA5nFMdL...">
+                                <p class="help-text">The file ID from the shareable link.</p>
                             </div>
                         </div>
                         <div id="webdav-config" class="hidden">
@@ -124,6 +126,7 @@
                             <div class="form-group">
                                 <label>Password</label>
                                 <input type="password" id="webdav-password">
+                                <p class="help-text">Ensure the server allows CORS from this origin, or use a proxy.</p>
                             </div>
                         </div>
                         <div class="form-group" style="margin-top: 12px;">

@@ -1,5 +1,5 @@
 // Project Monitoring Log (PML) - Service Worker
-const APP_VERSION = '260416-1028';
+const APP_VERSION = '260416-1030';
 const CACHE_NAME = `pml-${APP_VERSION}`;
 const CACHE_URLS = [
   './',

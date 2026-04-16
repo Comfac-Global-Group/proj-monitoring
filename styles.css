@@ -188,6 +188,13 @@ body {
     min-height: 80px;
 }
 
+.help-text {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    margin-bottom: 0;
+}
+
 .btn {
     padding: 10px 20px;
     border: none;

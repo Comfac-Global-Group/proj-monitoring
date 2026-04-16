@@ -601,6 +601,14 @@ class Store {
         return this.config.settings.cloudConfig || {};
     }
 
+    _normalizeSyncError(error) {
+        const msg = error.message || String(error);
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('CORS')) {
+            return 'Network or CORS error. Ensure the server allows CORS requests from this origin, or use a proxy.';
+        }
+        return msg;
+    }
+
     async syncPush() {
         const cfg = this.getCloudConfig();
         const provider = this.config.settings.cloudProvider;
@@ -614,7 +622,7 @@ class Store {
                 return await this._pushWebDAV(cfg, payload);
             }
         } catch (e) {
-            return { ok: false, error: e.message };
+            return { ok: false, error: this._normalizeSyncError(e) };
         }
         return { ok: false, error: 'Unknown provider' };
     }
@@ -643,7 +651,7 @@ class Store {
             this._saveData();
             return { ok: true, data: remoteData, conflict: false };
         } catch (e) {
-            return { ok: false, error: e.message };
+            return { ok: false, error: this._normalizeSyncError(e) };
         }
     }
 

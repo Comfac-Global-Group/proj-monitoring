@@ -130,6 +130,8 @@ The app is a static PWA. Deploy to any web server (Nginx, Apache, GitHub Pages, 
 **GitHub Pages (live):** ✅ Deployed automatically via GitHub Actions from the `main` branch root. Includes `.nojekyll` to disable Jekyll processing.
 `https://comfac-global-group.github.io/proj-monitoring/`
 
+**PWA Updates:** When the app is updated, existing PWA installations may still show the old app name ("POMM") until the user uninstalls and reinstalls the PWA. This is a browser caching limitation.
+
 For self-hosted HTTPS (required for PWA installation):
 - Use Let's Encrypt with Nginx Proxy Manager
 - Serve from `bp.comfac-it.com` or similar domain
