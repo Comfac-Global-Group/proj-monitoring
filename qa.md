@@ -69,6 +69,7 @@ Settings (⚙️) → User Management → click Delete next to the user. The `ad
 | Q-004 | 260415-120000 | OPEN | WebDAV (Nextcloud/Seafile) Basic Auth via browser fetch may be blocked by CORS on some servers | Must test against actual Nextcloud/Seafile instance. Document workaround (proxy or CORS headers on server). |
 | Q-005 | 260415-120000 | CLOSED | PWA service worker caching stale app shell after updates | **Fixed 260416**: Cache name now includes `APP_VERSION`. Update banner includes a Reload button that triggers `SKIP_WAITING`. |
 | Q-026 | 260415-120000 | CLOSED | License mismatch: `package.json` declares MIT but `LICENSE` file is GNU GPL v3 | **Fixed 260416**: `package.json` and `README.md` updated to GPL-3.0 to match `LICENSE`. |
+| Q-029 | 260416-1028 | CLOSED | Cannot save new or edited actions in v0.3.0 | **Fixed 260416**: `parseActionLog()` used `logPattern.match(line)` instead of `line.match(logPattern)`, causing a TypeError on every action save. |
 
 ---
 

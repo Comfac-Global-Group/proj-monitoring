@@ -77,7 +77,7 @@ function parseActionLog(text) {
     text.split('\n').forEach(line => {
         line = line.trim();
         if (!line) return;
-        const m = logPattern.match(line);
+        const m = line.match(logPattern);
         if (m) {
             entries.push({ date: m[1], text: m[2].trim() });
         }

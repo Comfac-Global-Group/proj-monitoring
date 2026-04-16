@@ -8,7 +8,7 @@
 
 ## Current Version
 
-**v0.2.0** — `260416-0951` — Agent: Kimi Code CLI — **DONE**
+**v0.3.0-hotfix1** — `260416-1028` — Agent: Kimi Code CLI — **DONE**
 
 ---
 
@@ -77,6 +77,9 @@
 - Cloud sync settings with status icon in header
 - Expandable log timeline inside each action
 - Import `other-matters-import.json` and see all legacy data with owners and issues populated
+
+**Hotfix 1 (260416-1028):**
+- Fixed `parseActionLog()` bug where `logPattern.match(line)` threw `TypeError` and blocked all action saves/edits. Now uses `line.match(logPattern)`.
 
 ---
 
