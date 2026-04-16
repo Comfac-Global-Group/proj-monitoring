@@ -5,22 +5,22 @@
 
 | Field | Value |
 |---|---|
-| App name | Plant Operations Meeting Monitor (POMM) |
+| App name | Project Monitoring Log (PML) |
 | Purpose | Replace Google Sheets "OTHER MATTERS" workflow for plant operations meetings |
 | Stack | Vanilla HTML5 + ES6 modules + plain CSS — no framework, no build tool |
 | Persistence | localStorage (`pomm-data`, `pomm-config`, `pomm-versions`) |
 | PWA | manifest.json + service-worker.js (cache-first, offline-first) |
 | Remote | `https://github.com/Comfac-Global-Group/proj-monitoring` |
 | Pages URL | `https://comfac-global-group.github.io/proj-monitoring/` |
-| License | Mismatch: package.json says MIT, LICENSE file is GNU GPL v3 |
+| License | GPL-3.0 (resolved 260416) |
 
 ## File Map
 
 | Path | Role | Lines |
 |---|---|---|
-| `index.html` | DOM structure — login, project list, settings panel, modals | 154 |
-| `app.js` | UI rendering, event handling, auth, theme/layout, import/export | 725 |
-| `store.js` | Data model, CRUD, RBAC, versioning, localStorage persistence | 609 |
+| `index.html` | DOM structure — login, project list, filters, settings panel, modals | 220 |
+| `app.js` | UI rendering, event handling, auth, theme/layout, import/export, sync, filters, sort, changelog | 1100 |
+| `store.js` | Data model, CRUD, RBAC, versioning, cloud sync, change log, localStorage persistence | 850 |
 | `styles.css` | CSS variables (light/dark), layout modes, component styles | 611 |
 | `manifest.json` | PWA manifest — name, icons, start_url, shortcuts | 30 |
 | `service-worker.js` | Cache-first app shell caching, offline support | 80 |
@@ -28,8 +28,8 @@
 | `package.json` | live-server dev server, `type: "module"`, no prod deps | 21 |
 | `README.md` | Setup, default creds, project structure, data model example | 88 |
 | `frd.md` | Functional requirements, data model, RBAC, FRD instructions | 255 |
-| `qa.md` | 24 open issues (P0–P3), known constraints, source data mapping | 82 |
-| `roadmap.md` | Post-MVP features | 139 |
+| `qa.md` | QA issues (P0 blockers closed 260416), Phase 2 in progress | 82 |
+| `roadmap.md` | Post-MVP features — Phase 2 in progress, Phase 3 viable only, Phase 4 out of scope | 140 |
 
 ## Architecture
 
@@ -40,7 +40,7 @@ index.html  →  app.js (UI layer)
                   ↕
             localStorage
             pomm-data     → { projects: Project[] }
-            pomm-config   → { users: User[], settings: {} }
+            pomm-config   → { users: User[], settings: { theme, layout, cloudProvider, cloudConfig } }
             pomm-versions → VersionSnapshot[]
 ```
 
@@ -50,24 +50,29 @@ No backend. No network calls except optional cloud sync (unimplemented). Session
 
 ```javascript
 Project {
-  id:         string,          // generateId() — random, not crypto
-  title:      string,
-  status:     "open" | "closed",
-  details:    string,
-  notes:      string,
-  actions:    Action[],
-  notesComments: Comment[],    // separate from action comments
-  created_at: string,          // "yymmdd-hhmmss"
-  updated_at: string
+  id:              string,
+  title:           string,
+  status:          "open" | "closed",
+  details:         string,
+  notes:           string,
+  project_due_date: string,     // YYYY-MM-DD
+  actions:         Action[],
+  notesComments:   Comment[],
+  change_log:      ChangeLogEntry[],
+  created_at:      string,      // "yymmdd-hhmmss"
+  updated_at:      string
 }
 
 Action {
-  id:         string,
-  text:       string,          // cumulative log entries (yymmdd prefix convention)
-  due_date:   string,          // "YYYY-MM-DD" (format mismatch with timestamps — Q-007)
-  comments:   Comment[],
-  created_at: string,
-  updated_at: string
+  id:           string,
+  text:         string,          // cumulative log entries (yymmdd prefix convention)
+  due_date:     string,          // "YYYY-MM-DD"
+  owner:        string,
+  issue:        string,          // cause of delay
+  comments:     Comment[],
+  log_entries:  { date: string, text: string }[], // parsed from text
+  created_at:   string,
+  updated_at:   string
 }
 
 Comment {
@@ -90,6 +95,14 @@ VersionSnapshot {
   data:       deep clone of pomm-data
 }
 // Max 20 versions kept
+
+ChangeLogEntry {
+  user:       string,
+  datetime:   string,          // yymmdd-hhmmss
+  field:      string,
+  old_value:  string,
+  new_value:  string
+}
 ```
 
 ## Default Users (store.js lines 173–178)
@@ -203,32 +216,33 @@ Required fixes:
 
 | Feature | Status | Location |
 |---|---|---|
-| Comment UI (actions + notes) | Stubbed — `alert('coming soon')` | app.js:579–581 |
-| Project expand/collapse toggle | No-op | app.js:560–561 |
-| Cloud sync (Google Drive, Nextcloud, Seafile) | UI exists, zero implementation | app.js, store.js |
-| Add new user (UI) | No form — can only delete users | app.js renderUsers() |
-| File attachments on notes | No UI, no storage logic | — |
-| localStorage quota warning (>4MB) | Not implemented | Q-003 |
-| Service worker version/cache bust | Not implemented | Q-005 |
-| Action text as dated log timeline | Plain textarea only | Q-017 |
-| Search / filter | Not implemented | Q-019 |
-| Sort controls | Not implemented | Q-020 |
+| Comment UI (actions + notes) | Implemented | app.js |
+| Project expand/collapse toggle | Implemented | app.js |
+| Cloud sync (Google Drive, Nextcloud, Seafile) | Framework implemented — requires user tokens/credentials | app.js, store.js |
+| Add new user (UI) | Implemented 260416 | app.js |
+| File attachments on notes | Out of scope | roadmap.md |
+| localStorage quota warning (>4MB) | Implemented 260416 | store.js, app.js |
+| Service worker version/cache bust | Implemented 260416 | service-worker.js |
+| Action text as dated log timeline | Implemented 260416 | store.js, app.js |
+| Search / filter | Implemented 260416 | app.js |
+| Sort controls | Implemented 260416 | app.js |
+| Audit trail / change log | Implemented 260416 | store.js, app.js |
 
 ## Known Bugs / Issues
 
 | ID | Summary | Priority |
 |---|---|---|
-| Q-001 | UI quality guidance for AI code generation | P0 |
-| Q-002 | Google Drive OAuth CORS handling | P0 |
-| Q-003 | localStorage 5MB overflow — no warning | P0 |
-| Q-004 | WebDAV CORS blocked | P0 |
-| Q-005 | Stale service worker cache after updates | P0 |
-| Q-007 | Date format mismatch: `yymmdd` vs `YYYY-MM-DD` | P1 |
-| Q-008 | Open/closed gray-out must work in both themes | P1 |
-| Q-009 | File attachment base64 bloat | P1 |
-| Q-012 | Version restore confirm dialog (actually implemented — can close) | P1 |
-| — | manifest.json start_url breaks GitHub Pages | **NEW / BLOCKER** |
-| — | License mismatch (MIT vs GPL v3) | Admin |
+| Q-001 | UI quality guidance for AI code generation | P1 |
+| Q-002 | Google Drive OAuth CORS handling — requires valid token | P1 |
+| Q-003 | localStorage 5MB overflow — warning implemented | **CLOSED** |
+| Q-004 | WebDAV CORS blocked — server-side CORS headers required | P1 |
+| Q-005 | Stale service worker cache after updates | **CLOSED** |
+| Q-007 | Date format mismatch: `yymmdd` vs `YYYY-MM-DD` — parsed into log_entries | P2 |
+| Q-008 | Open/closed gray-out must work in both themes | **CLOSED** |
+| Q-009 | File attachment base64 bloat | Out of scope |
+| Q-012 | Version restore confirm dialog | **CLOSED** |
+| — | manifest.json start_url breaks GitHub Pages | **CLOSED** |
+| — | License mismatch (MIT vs GPL v3) | **CLOSED** |
 
 ## MVP Completion Estimate
 
@@ -245,4 +259,4 @@ Required fixes:
 | User management | View + delete | Add user form |
 | Import / Export | ✓ | Validation |
 
-Overall: ~70% complete. Core CRUD and PWA shell work. Comments, cloud sync, search, and filter are missing.
+Overall: ~90% complete. Core CRUD, PWA shell, comments, search/filter, sort, action logs, owner/issue fields, change log, and cloud sync framework are implemented. Phase 3+ items outside audit/debug view are out of scope.

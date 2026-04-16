@@ -1,138 +1,108 @@
 # Roadmap — Post-MVP Features
-**Project:** Plant Operations Meeting Monitor (POMM)
-**Repo:** https://github.com/Comfac-Global-Group/proj-monitoring
-**Status:** OPEN
-**Created:** 260415-120000
-**Last Updated:** 260415-120000
+**Project:** Plant Operations Meeting Monitor (POMM)  
+**Repo:** https://github.com/Comfac-Global-Group/proj-monitoring  
+**Status:** OPEN  
+**Created:** 260415-120000  
+**Last Updated:** 260416-100000
 
 ---
 
-> Everything in this file is **out of scope for the current sprint**.
-> Items here should not be built until MVP (see `frd.md`) is shipped and validated.
-> Each item has a datetime stamp and status: `PLANNED` | `IN PROGRESS` | `DEFERRED` | `CANCELLED`
+> Items here are being built after MVP.  
+> Each item has a datetime stamp and status: `PLANNED` | `IN PROGRESS` | `DONE` | `DEFERRED` | `CANCELLED` | `OUT OF SCOPE`
 
 ---
 
-## Phase 2 — Post-MVP (next 2–4 weeks)
+## Phase 2 — In Progress
 
-### R-001 | 260415-120000 | PLANNED
-**XLSX Migration Script**
-Write a one-time Python or Node.js script to convert `OTHER MATTERS` sheet from `PLANT_OPERATIONS_MEETING_NEW__2024__2026.xlsx` into the app's JSON format. Fields to map: `DONE → status`, `ITEMS/PROJ → title`, `DETAILS → description`, `ACTION TO BE TAKEN → actions[].text`, `ACTION DUE DATE → actions[].due_date`, `REMARKS/LINK → notes`.
-
----
-
-### R-002 | 260415-120000 | PLANNED
-**Action Log Parsing**
-The action text field contains entries prefixed with `yymmdd - ` (e.g. `260415 - for follow up`). Parse these into a structured timeline/log view within each action. Render as dated entries, expandable/collapsible. Preserves the weekly-update-log style of the original spreadsheet.
+### R-001 | 260415-120000 | DONE
+**XLSX Migration Script**  
+One-time Python script (`scripts/xlsx-to-json.py`) converts the `OTHER MATTERS` sheet into the app's JSON format.  
+Fields mapped: `DONE → status`, `ITEMS/PROJ → title`, `DETAILS → details`, `OWNER → actions[].owner`, `ACTION TO BE TAKEN → actions[].text`, `ACTION DUE DATE → actions[].due_date`, `PROJ DUE DATE → project_due_date`, `ISSUE/CAUSE OF DELAY → actions[].issue`, `REMARKS/LINK → notes`.
 
 ---
 
-### R-003 | 260415-120000 | PLANNED
-**Owner / Assignee Field**
-Add `owner` field to Actions (maps to `OWNER (OF ACTION IN THE PLANT)` column in source spreadsheet). Displayed inline with the action. Filter by owner.
+### R-002 | 260415-120000 | IN PROGRESS
+**Action Log Parsing**  
+The action text field contains entries prefixed with `yymmdd - `. These are parsed into a structured `log_entries` array and rendered as an expandable timeline within each action.
 
 ---
 
-### R-004 | 260415-120000 | PLANNED
-**Search & Filter**
-Text search across all project titles and action text. Filter by: status (open/closed), due date range, owner. Filter state persists in URL hash for shareability.
+### R-003 | 260415-120000 | IN PROGRESS
+**Owner / Assignee Field**  
+`owner` field on Actions, displayed inline. Filterable by owner.
 
 ---
 
-### R-005 | 260415-120000 | PLANNED
-**Sort Controls**
-User-configurable sort: by due date (soonest first), by status (open first), by last updated, by project name alphabetically. Default: open first, soonest due date.
+### R-004 | 260415-120000 | IN PROGRESS
+**Search & Filter**  
+Text search across project titles and action text. Filter by status, due date range, and owner. Filter state persists in URL hash.
 
 ---
 
-### R-006 | 260415-120000 | PLANNED
-**Auto-Sync (Polling)**
-Periodic background sync to configured cloud path (Google Drive / Nextcloud / Seafile). Configurable interval (e.g. every 5 min). Show sync status in header. Detect if remote file is newer and prompt user to pull.
+### R-005 | 260415-120000 | IN PROGRESS
+**Sort Controls**  
+Sort by due date, status, last updated, or project name. Default: open first, soonest due date.
 
 ---
 
-### R-007 | 260415-120000 | PLANNED
-**Conflict Resolution**
-When two users sync to the same cloud file: detect timestamp conflict, show diff, let user choose which version to keep or merge. For now: last-write-wins with a warning.
+### R-006 | 260415-120000 | IN PROGRESS
+**Auto-Sync (Polling)**  
+Periodic background sync to Google Drive (via pasted OAuth token) or Nextcloud/Seafile (via WebDAV). Configurable interval. Sync status icon in header.
 
 ---
 
-## Phase 3 — Medium Term
+### R-007 | 260415-120000 | IN PROGRESS
+**Conflict Resolution**  
+Detects timestamp conflicts on sync. Shows a diff/prompt; defaults to last-write-wins with a warning.
+
+---
+
+## Phase 3 — Viable Only
 
 ### R-008 | 260415-120000 | PLANNED
-**Audit Trail / Change Log**
-Every edit appends a log entry: `{ user, datetime, field, old_value, new_value }`. Viewable in a "History" panel per project. Exportable as CSV.
-
----
-
-### R-009 | 260415-120000 | PLANNED
-**Due Date Reminders / Badges**
-Visual indicators: red badge on overdue actions, yellow on due within 3 days. No push notifications for MVP — just visual states in the UI.
-
----
-
-### R-010 | 260415-120000 | PLANNED
-**Print / Export to PDF**
-Clean print stylesheet or PDF export of all open projects and their actions. Suitable for meeting handouts.
-
----
-
-### R-011 | 260415-120000 | PLANNED
-**Keyboard Shortcuts**
-`Ctrl+S` = save/sync, `Ctrl+N` = new project, `Escape` = deselect/collapse, `Tab` = move to next action field. Document in a help overlay (`?` key).
-
----
-
-### R-012 | 260415-120000 | PLANNED
-**Advanced File Attachments**
-For Notes field: support attaching files > 1MB by storing them directly in the cloud sync folder (Google Drive / Nextcloud / Seafile) and saving only the URL reference in the JSON. Preview images inline.
+**Audit Trail / Change Log**  
+Every edit appends a log entry: `{ user, datetime, field, old_value, new_value }`. Viewable in a "History" panel per project. Exportable as CSV. Treated as an audit/debug view.
 
 ---
 
 ### R-013 | 260415-120000 | PLANNED
-**ISSUE / CAUSE OF DELAY Field**
-Map `ISSUE / CAUSE OF DELAY` column from source spreadsheet. Add as optional field on Actions. Used to tag recurring delay types (e.g. "waiting for quotation", "pending approval").
+**ISSUE / CAUSE OF DELAY Field**  
+Maps the `ISSUE / CAUSE OF DELAY` spreadsheet column. Added as an optional field on Actions.
 
 ---
 
-### R-014 | 260415-120000 | PLANNED
-**PROJ DUE DATE (Project-level deadline)**
-Separate from Action due dates. Shown on the project header row. Visual indicator when project is overdue.
+### R-009 | 260415-120000 | OUT OF SCOPE
+Due Date Reminders / Badges — basic overdue/due-soon visual indicators already exist in the UI.
 
 ---
 
-## Phase 4 — Long Term / Research
-
-### R-015 | 260415-120000 | PLANNED
-**Real-Time Collaboration**
-Move to a backend (lightweight: PocketBase, Supabase, or self-hosted Firebase alternative) for real-time multi-user editing. Out of scope until cloud sync is validated and team adoption is confirmed.
+### R-010 | 260415-120000 | OUT OF SCOPE
+Print / Export to PDF.
 
 ---
 
-### R-016 | 260415-120000 | PLANNED
-**ERP Integration (ERPNext)**
-Read-only links from Actions to ERPNext tasks/PRs/POs (the team already references ERPNext URLs in notes). Render as clickable chips. Optionally fetch status from ERPNext API.
+### R-011 | 260415-120000 | OUT OF SCOPE
+Keyboard shortcuts and help overlay.
 
 ---
 
-### R-017 | 260415-120000 | PLANNED
-**Mobile Native App (Capacitor)**
-Wrap the PWA in Capacitor for Android/iOS distribution. Adds: native file picker for attachments, push notifications for due dates, biometric login.
+### R-012 | 260415-120000 | OUT OF SCOPE
+Advanced File Attachments via cloud sync folder.
 
 ---
 
-### R-018 | 260415-120000 | DEFERRED
-**AI Summary of Action Logs**
-Use an LLM API to auto-summarize the cumulative action text (the `yymmdd - ...` log entries) into a one-line project status. Useful for meeting prep. Deferred: requires API key management and adds complexity.
+### R-014 | 260415-120000 | OUT OF SCOPE
+Project-level due date (`project_due_date`) is stored in the data model for import compatibility but full UI treatment is out of scope.
 
 ---
 
-### R-019 | 260415-120000 | PLANNED
-**Multi-Project Dashboard / Summary View**
-High-level view: count of open projects, actions overdue, actions due this week, by owner. Replaces the need to scroll through all projects to get a status snapshot.
+## Phase 4 — Out of Scope
 
----
+All Phase 4 items are **out of scope** to avoid bloating the app:
 
-### R-020 | 260415-120000 | PLANNED
-**Theming / Branding**
-Custom accent color per organization. Logo in header. Suitable for deploying multiple instances (Cabuyao Plant, Mandaluyong, Makati) with distinct branding.
+- **R-015** — Real-Time Collaboration backend
+- **R-016** — ERP Integration (ERPNext)
+- **R-017** — Mobile Native App (Capacitor)
+- **R-018** — AI Summary of Action Logs
+- **R-019** — Multi-Project Dashboard / Summary View
+- **R-020** — Theming / Branding

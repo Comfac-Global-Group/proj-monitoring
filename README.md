@@ -47,10 +47,18 @@ A lightweight, portable, PWA-capable project monitoring tool that replaces the G
 - `qa.md` - QA issues and backlog
 - `repoanalysis.md` - AI-optimized codebase reference
 
-## Data Model
+## JSON Data Structure
 
-Projects contain actions, which can have comments. All timestamps use `yymmdd-hhmmss` format.
+The app stores all project data in localStorage and supports **Import**, **Export**, **Save Version**, and **Restore Version** via JSON.
 
+### Top-level object
+```json
+{
+  "projects": [Project]
+}
+```
+
+### Project
 ```json
 {
   "id": "uuid",
@@ -58,16 +66,62 @@ Projects contain actions, which can have comments. All timestamps use `yymmdd-hh
   "status": "open",
   "details": "Description",
   "notes": "Rich text notes",
-  "actions": [
-    {
-      "id": "uuid",
-      "text": "Action description",
-      "due_date": "YYYY-MM-DD",
-      "comments": []
-    }
-  ]
+  "project_due_date": "YYYY-MM-DD",
+  "actions": [Action],
+  "notesComments": [Comment],
+  "change_log": [ChangeLogEntry],
+  "created_at": "yymmdd-hhmmss",
+  "updated_at": "yymmdd-hhmmss"
 }
 ```
+
+### Action
+```json
+{
+  "id": "uuid",
+  "text": "Action description",
+  "due_date": "YYYY-MM-DD",
+  "owner": "Owner Name",
+  "issue": "Cause of delay",
+  "comments": [Comment],
+  "log_entries": [
+    { "date": "yymmdd", "text": "Log entry text" }
+  ],
+  "created_at": "yymmdd-hhmmss",
+  "updated_at": "yymmdd-hhmmss"
+}
+```
+
+### Comment
+```json
+{
+  "id": "uuid",
+  "author": "username",
+  "text": "comment body",
+  "created_at": "yymmdd-hhmmss"
+}
+```
+
+### ChangeLogEntry
+```json
+{
+  "user": "username",
+  "datetime": "yymmdd-hhmmss",
+  "field": "title",
+  "old_value": "old",
+  "new_value": "new"
+}
+```
+
+### Import / Export / Save-As
+- **Export** — Settings → Export All Data (`.json`)
+- **Import** — Settings → Import Data (overwrites current localStorage)
+- **Save Version** — Settings → Save Current Version (creates a named snapshot in localStorage)
+- **Restore Version** — Settings → click Restore on any saved snapshot
+- **XLSX Migration** — Use `scripts/xlsx-to-json.py` to convert the `OTHER MATTERS` spreadsheet sheet into the JSON format above, then import the resulting file.
+
+### Version Snapshots
+Snapshots are stored under the `pomm-versions` localStorage key. Each snapshot is a deep clone of the entire `projects` array at the time it was saved. You can keep up to 20 snapshots; older ones are automatically pruned.
 
 ## Deployment
 

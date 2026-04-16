@@ -9,7 +9,20 @@ let currentProjectId = null;
 let currentActionId = null;
 let isPhoneLayout = false;
 const collapsedProjects = new Set();
+const collapsedLogs = new Set();
 let commentContext = { projectId: null, actionId: null };
+let syncIntervalId = null;
+let lastSyncResult = { status: 'idle', message: '' };
+
+// Filter / sort state
+let filterState = {
+    query: '',
+    status: 'all',
+    dateFrom: '',
+    dateTo: '',
+    owner: ''
+};
+let sortValue = 'default';
 
 // ------------------------------------------------------------
 // DOM Elements
@@ -31,12 +44,15 @@ const projectForm = document.getElementById('project-form');
 const projectTitleInput = document.getElementById('project-title');
 const projectDetailsInput = document.getElementById('project-details');
 const projectNotesInput = document.getElementById('project-notes');
+const projectDueDateInput = document.getElementById('project-due-date');
 const projectStatusInput = document.getElementById('project-status');
 const projectCancelBtn = document.getElementById('project-cancel');
 const actionModal = document.getElementById('action-modal');
 const actionForm = document.getElementById('action-form');
 const actionTextInput = document.getElementById('action-text');
 const actionDueDateInput = document.getElementById('action-due-date');
+const actionOwnerInput = document.getElementById('action-owner');
+const actionIssueInput = document.getElementById('action-issue');
 const actionCancelBtn = document.getElementById('action-cancel');
 const overlay = document.getElementById('overlay');
 const commentModal = document.getElementById('comment-modal');
@@ -46,6 +62,7 @@ const commentForm = document.getElementById('comment-form');
 const commentTextInput = document.getElementById('comment-text');
 const commentCloseBtn = document.getElementById('comment-close');
 const exportBtn = document.getElementById('export-btn');
+const saveAsBtn = document.getElementById('save-as-btn');
 const importBtn = document.getElementById('import-btn');
 const importFileInput = document.getElementById('import-file');
 const saveVersionBtn = document.getElementById('save-version-btn');
@@ -57,6 +74,36 @@ const newUsernameInput = document.getElementById('new-username');
 const newPasswordInput = document.getElementById('new-password');
 const newRoleInput = document.getElementById('new-role');
 
+// Filters / search / sort
+const searchInput = document.getElementById('search-input');
+const filterStatus = document.getElementById('filter-status');
+const filterDateFrom = document.getElementById('filter-date-from');
+const filterDateTo = document.getElementById('filter-date-to');
+const filterOwner = document.getElementById('filter-owner');
+const sortSelect = document.getElementById('sort-select');
+const clearFiltersBtn = document.getElementById('clear-filters-btn');
+
+// Sync
+const syncStatus = document.getElementById('sync-status');
+const cloudProviderSelect = document.getElementById('cloud-provider');
+const cloudConfigPanel = document.getElementById('cloud-config');
+const googleConfigPanel = document.getElementById('google-config');
+const webdavConfigPanel = document.getElementById('webdav-config');
+const googleTokenInput = document.getElementById('google-token');
+const googleFileIdInput = document.getElementById('google-file-id');
+const webdavUrlInput = document.getElementById('webdav-url');
+const webdavUsernameInput = document.getElementById('webdav-username');
+const webdavPasswordInput = document.getElementById('webdav-password');
+const syncIntervalInput = document.getElementById('sync-interval');
+const saveCloudBtn = document.getElementById('save-cloud-btn');
+const syncNowBtn = document.getElementById('sync-now-btn');
+const pullNowBtn = document.getElementById('pull-now-btn');
+
+// Changelog
+const changelogProjectSelect = document.getElementById('changelog-project-select');
+const changelogList = document.getElementById('changelog-list');
+const exportChangelogBtn = document.getElementById('export-changelog-btn');
+
 // ------------------------------------------------------------
 // Service Worker Registration
 // ------------------------------------------------------------
@@ -65,7 +112,6 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./service-worker.js')
             .then(registration => {
                 console.log('Service Worker registered:', registration);
-                // Check for updates
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
                     newWorker.addEventListener('statechange', () => {
@@ -89,7 +135,6 @@ function initTheme() {
     const savedTheme = settings.theme || 'light';
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const theme = savedTheme === 'system' ? (prefersDark ? 'dark' : 'light') : savedTheme;
-    
     document.documentElement.setAttribute('data-theme', theme);
     updateThemeToggleIcon(theme);
 }
@@ -97,7 +142,6 @@ function initTheme() {
 function toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
     document.documentElement.setAttribute('data-theme', newTheme);
     store.updateSettings({ theme: newTheme });
     updateThemeToggleIcon(newTheme);
@@ -141,7 +185,6 @@ function updateLayout() {
 // Authentication
 // ------------------------------------------------------------
 function initAuth() {
-    // Check if user is already logged in (from sessionStorage)
     const savedUser = sessionStorage.getItem('pomm-user');
     if (savedUser) {
         const user = JSON.parse(savedUser);
@@ -164,31 +207,27 @@ function showLogin() {
 function showApp() {
     loginScreen.classList.add('hidden');
     appContainer.classList.remove('hidden');
+    initFiltersFromHash();
     renderProjects();
+    initSyncPolling();
 }
 
 function handleLogin(event) {
     event.preventDefault();
-    
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
-    
     if (!username || !password) {
         alert('Please enter username and password');
         return;
     }
-    
     const user = store.authenticate(username, password);
     if (!user) {
         alert('Invalid username or password');
         return;
     }
-    
     currentUser = user;
     sessionStorage.setItem('pomm-user', JSON.stringify(user));
     showApp();
-    
-    // Clear form
     usernameInput.value = '';
     passwordInput.value = '';
 }
@@ -196,26 +235,147 @@ function handleLogin(event) {
 function logout() {
     currentUser = null;
     sessionStorage.removeItem('pomm-user');
+    stopSyncPolling();
     showLogin();
+}
+
+// ------------------------------------------------------------
+// Filters / Sort / URL Hash
+// ------------------------------------------------------------
+function initFiltersFromHash() {
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
+    filterState.query = params.get('q') || '';
+    filterState.status = params.get('status') || 'all';
+    filterState.dateFrom = params.get('from') || '';
+    filterState.dateTo = params.get('to') || '';
+    filterState.owner = params.get('owner') || '';
+    sortValue = params.get('sort') || 'default';
+
+    searchInput.value = filterState.query;
+    filterStatus.value = filterState.status;
+    filterDateFrom.value = filterState.dateFrom;
+    filterDateTo.value = filterState.dateTo;
+    filterOwner.value = filterState.owner;
+    sortSelect.value = sortValue;
+}
+
+function updateHashFromFilters() {
+    const params = new URLSearchParams();
+    if (filterState.query) params.set('q', filterState.query);
+    if (filterState.status && filterState.status !== 'all') params.set('status', filterState.status);
+    if (filterState.dateFrom) params.set('from', filterState.dateFrom);
+    if (filterState.dateTo) params.set('to', filterState.dateTo);
+    if (filterState.owner) params.set('owner', filterState.owner);
+    if (sortValue && sortValue !== 'default') params.set('sort', sortValue);
+    window.location.hash = params.toString();
+}
+
+function applyFilters(projects) {
+    const q = filterState.query.toLowerCase();
+    return projects.filter(p => {
+        if (filterState.status !== 'all' && p.status !== filterState.status) return false;
+        if (q && !p.title.toLowerCase().includes(q)) {
+            const actionMatch = (p.actions || []).some(a =>
+                (a.text || '').toLowerCase().includes(q) ||
+                (a.owner || '').toLowerCase().includes(q) ||
+                (a.issue || '').toLowerCase().includes(q)
+            );
+            if (!actionMatch) return false;
+        }
+        if (filterState.owner) {
+            const ownerLower = filterState.owner.toLowerCase();
+            const actionOwnerMatch = (p.actions || []).some(a =>
+                (a.owner || '').toLowerCase().includes(ownerLower)
+            );
+            if (!actionOwnerMatch && !p.title.toLowerCase().includes(ownerLower)) return false;
+        }
+        if (filterState.dateFrom || filterState.dateTo) {
+            const from = filterState.dateFrom;
+            const to = filterState.dateTo;
+            const dateMatch = (p.actions || []).some(a => {
+                const d = a.due_date;
+                if (!d) return false;
+                if (from && d < from) return false;
+                if (to && d > to) return false;
+                return true;
+            });
+            if (!dateMatch) return false;
+        }
+        return true;
+    });
+}
+
+function applySort(projects) {
+    const list = [...projects];
+    list.sort((a, b) => {
+        // Always sort open first as base
+        if (a.status !== b.status) {
+            return a.status === 'open' ? -1 : 1;
+        }
+        switch (sortValue) {
+            case 'due_date': {
+                const ad = (a.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
+                const bd = (b.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
+                return ad.localeCompare(bd);
+            }
+            case 'updated':
+                return (b.updated_at || '').localeCompare(a.updated_at || '');
+            case 'name':
+                return (a.title || '').localeCompare(b.title || '');
+            case 'status':
+                return (a.status || '').localeCompare(b.status || '');
+            default: {
+                // Default: open first, soonest due date
+                const ad = (a.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
+                const bd = (b.actions || []).map(x => x.due_date).filter(Boolean).sort()[0] || '9999-12-31';
+                return ad.localeCompare(bd);
+            }
+        }
+    });
+    return list;
+}
+
+function handleFilterChange() {
+    filterState.query = searchInput.value.trim();
+    filterState.status = filterStatus.value;
+    filterState.dateFrom = filterDateFrom.value;
+    filterState.dateTo = filterDateTo.value;
+    filterState.owner = filterOwner.value.trim();
+    sortValue = sortSelect.value;
+    updateHashFromFilters();
+    renderProjects();
+}
+
+function clearFilters() {
+    searchInput.value = '';
+    filterStatus.value = 'all';
+    filterDateFrom.value = '';
+    filterDateTo.value = '';
+    filterOwner.value = '';
+    sortSelect.value = 'default';
+    handleFilterChange();
 }
 
 // ------------------------------------------------------------
 // Project Rendering
 // ------------------------------------------------------------
 function renderProjects() {
-    const projects = store.getProjects();
-    
+    const allProjects = store.getProjects();
+    const filtered = applyFilters(allProjects);
+    const projects = applySort(filtered);
+
     if (projects.length === 0) {
         projectsList.innerHTML = `
             <div class="empty-state">
-                <p>No projects yet. Add your first project to get started.</p>
+                <p>No projects match your filters. <button class="btn btn-small btn-secondary" id="clear-filters-inline">Clear filters</button></p>
             </div>
         `;
+        document.getElementById('clear-filters-inline')?.addEventListener('click', clearFilters);
         return;
     }
-    
+
     let html = '';
-    
     projects.forEach(project => {
         const isClosed = project.status === 'closed';
         const isCollapsed = collapsedProjects.has(project.id);
@@ -229,6 +389,7 @@ function renderProjects() {
                             ${isCollapsed ? '▶' : '▼'}
                         </button>
                         <h3 class="project-title">${escapeHtml(project.title)}</h3>
+                        ${project.project_due_date ? `<span class="project-due-badge">Due ${formatDisplayDate(project.project_due_date)}</span>` : ''}
                     </div>
                     <div class="project-status-toggle">
                         <span class="status-badge ${isClosed ? 'closed' : 'open'}">${project.status.toUpperCase()}</span>
@@ -248,7 +409,7 @@ function renderProjects() {
                     ${project.notes ? `
                         <div class="project-notes">
                             <h4>Notes</h4>
-                            <div class="project-notes-content">${escapeHtml(project.notes)}</div>
+                            <div class="project-notes-content">${linkifyText(escapeHtml(project.notes))}</div>
                             ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
                                 <button class="action-comments" data-action="add-notes-comment" data-project-id="${project.id}">
                                     💬 Comment${project.notesComments?.length ? ` (${project.notesComments.length})` : ''}
@@ -280,7 +441,7 @@ function renderProjects() {
             </div>
         `;
     });
-    
+
     projectsList.innerHTML = html;
 }
 
@@ -288,7 +449,7 @@ function renderActions(project) {
     if (!project.actions || project.actions.length === 0) {
         return '<p class="text-sm" style="color: var(--text-tertiary);">No actions yet</p>';
     }
-    
+
     let html = '';
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
@@ -296,48 +457,67 @@ function renderActions(project) {
     project.actions.forEach(action => {
         let dueDateClass = '';
         let dueDateText = '';
-
         if (action.due_date) {
             dueDateText = formatDisplayDate(action.due_date);
             if (action.due_date <= todayStr) {
-                // On or past due date → overdue
                 dueDateClass = 'overdue';
             } else {
                 const daysLeft = Math.ceil((new Date(action.due_date) - today) / (1000 * 60 * 60 * 24));
-                if (daysLeft <= 3) {
-                    dueDateClass = 'due-soon';
-                }
+                if (daysLeft <= 3) dueDateClass = 'due-soon';
             }
         }
-        
         const commentsCount = action.comments ? action.comments.length : 0;
-        
+        const hasLogs = action.log_entries && action.log_entries.length > 0;
+        const logsCollapsed = collapsedLogs.has(action.id);
+
         html += `
             <div class="action-item" data-action-id="${action.id}">
-                <div class="action-text">${escapeHtml(action.text)}</div>
-                ${action.due_date ? `
-                    <div class="action-due-date ${dueDateClass}">${dueDateText}</div>
-                ` : ''}
-                ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
-                    <button class="action-comments" data-action="view-comments" data-project-id="${project.id}" data-action-id="${action.id}">
-                        💬 ${commentsCount}
-                    </button>
-                ` : ''}
-                ${currentUser?.role === 'editor' ? `
-                    <div style="display: flex; gap: 4px;">
-                        <button class="btn btn-small" data-action="edit-action" data-project-id="${project.id}" data-action-id="${action.id}">
-                            Edit
-                        </button>
-                        <button class="btn btn-small" data-action="delete-action" data-project-id="${project.id}" data-action-id="${action.id}">
-                            Delete
-                        </button>
+                <div class="action-main">
+                    <div class="action-text">${escapeHtml(action.text)}</div>
+                    <div class="action-meta-row">
+                        ${action.due_date ? `<span class="action-due-date ${dueDateClass}">📅 ${dueDateText}</span>` : ''}
+                        ${action.owner ? `<span class="action-owner">👤 ${escapeHtml(action.owner)}</span>` : ''}
+                        ${action.issue ? `<span class="action-issue">⚠️ ${escapeHtml(action.issue)}</span>` : ''}
                     </div>
-                ` : ''}
+                    ${hasLogs ? `
+                        <div class="action-log">
+                            <button class="btn btn-small btn-text" data-action="toggle-log" data-log-id="${action.id}">
+                                ${logsCollapsed ? '▶ Show log (' + action.log_entries.length + ')' : '▼ Hide log'}
+                            </button>
+                            <div class="log-entries ${logsCollapsed ? 'hidden' : ''}">
+                                ${action.log_entries.map(e => `
+                                    <div class="log-entry">
+                                        <span class="log-date">${escapeHtml(e.date)}</span>
+                                        <span class="log-text">${escapeHtml(e.text)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="action-controls">
+                    ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
+                        <button class="action-comments" data-action="view-comments" data-project-id="${project.id}" data-action-id="${action.id}">
+                            💬 ${commentsCount}
+                        </button>
+                    ` : ''}
+                    ${currentUser?.role === 'editor' ? `
+                        <div style="display: flex; gap: 4px;">
+                            <button class="btn btn-small" data-action="edit-action" data-project-id="${project.id}" data-action-id="${action.id}">Edit</button>
+                            <button class="btn btn-small" data-action="delete-action" data-project-id="${project.id}" data-action-id="${action.id}">Delete</button>
+                        </div>
+                    ` : ''}
+                </div>
             </div>
         `;
     });
-    
+
     return html;
+}
+
+function linkifyText(text) {
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    return text.replace(urlPattern, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
 }
 
 // ------------------------------------------------------------
@@ -345,24 +525,21 @@ function renderActions(project) {
 // ------------------------------------------------------------
 function openProjectModal(projectId = null) {
     currentProjectId = projectId;
-    
     if (projectId) {
-        // Edit mode
         const project = store.getProject(projectId);
         if (!project) return;
-        
         projectTitleInput.value = project.title;
         projectDetailsInput.value = project.details;
         projectNotesInput.value = project.notes;
+        projectDueDateInput.value = project.project_due_date || '';
         projectStatusInput.checked = project.status === 'open';
     } else {
-        // Create mode
         projectTitleInput.value = '';
         projectDetailsInput.value = '';
         projectNotesInput.value = '';
+        projectDueDateInput.value = '';
         projectStatusInput.checked = true;
     }
-    
     projectModal.classList.remove('hidden');
     overlay.classList.remove('hidden');
 }
@@ -375,31 +552,23 @@ function closeProjectModal() {
 
 function handleProjectSubmit(event) {
     event.preventDefault();
-    
     const projectData = {
         title: projectTitleInput.value.trim(),
         details: projectDetailsInput.value.trim(),
-        notes: projectNotesInput.value.trim()
+        notes: projectNotesInput.value.trim(),
+        project_due_date: projectDueDateInput.value
     };
-    
     if (!projectData.title) {
         alert('Project title is required');
         return;
     }
-    
+    const user = currentUser?.username || 'system';
     if (currentProjectId) {
-        // Update existing project
-        store.updateProject(currentProjectId, projectData);
-        if (!projectStatusInput.checked) {
-            store.updateProject(currentProjectId, { status: 'closed' });
-        } else {
-            store.updateProject(currentProjectId, { status: 'open' });
-        }
+        store.updateProject(currentProjectId, projectData, user);
+        store.updateProject(currentProjectId, { status: projectStatusInput.checked ? 'open' : 'closed' }, user);
     } else {
-        // Create new project
         store.createProject(projectData);
     }
-    
     closeProjectModal();
     renderProjects();
     checkStorageWarning();
@@ -411,22 +580,21 @@ function handleProjectSubmit(event) {
 function openActionModal(projectId, actionId = null) {
     currentProjectId = projectId;
     currentActionId = actionId;
-    
     if (actionId) {
-        // Edit mode
         const project = store.getProject(projectId);
         if (!project) return;
         const action = project.actions.find(a => a.id === actionId);
         if (!action) return;
-        
         actionTextInput.value = action.text;
         actionDueDateInput.value = action.due_date || '';
+        actionOwnerInput.value = action.owner || '';
+        actionIssueInput.value = action.issue || '';
     } else {
-        // Create mode
         actionTextInput.value = '';
         actionDueDateInput.value = '';
+        actionOwnerInput.value = '';
+        actionIssueInput.value = '';
     }
-    
     actionModal.classList.remove('hidden');
     overlay.classList.remove('hidden');
 }
@@ -440,25 +608,22 @@ function closeActionModal() {
 
 function handleActionSubmit(event) {
     event.preventDefault();
-    
     const actionData = {
         text: actionTextInput.value.trim(),
-        due_date: actionDueDateInput.value
+        due_date: actionDueDateInput.value,
+        owner: actionOwnerInput.value.trim(),
+        issue: actionIssueInput.value.trim()
     };
-    
     if (!actionData.text) {
         alert('Action text is required');
         return;
     }
-    
+    const user = currentUser?.username || 'system';
     if (currentActionId) {
-        // Update existing action
-        store.updateAction(currentProjectId, currentActionId, actionData);
+        store.updateAction(currentProjectId, currentActionId, actionData, user);
     } else {
-        // Create new action
         store.addAction(currentProjectId, actionData);
     }
-    
     closeActionModal();
     renderProjects();
     checkStorageWarning();
@@ -472,6 +637,7 @@ function openSettings() {
     settingsPanel.classList.remove('hidden');
     overlay.classList.remove('hidden');
     renderSettings();
+    renderChangelogProjects();
 }
 
 function closeSettings() {
@@ -483,16 +649,15 @@ function closeSettings() {
 function renderSettings() {
     renderVersions();
     renderUsers();
+    renderCloudConfig();
 }
 
 function renderVersions() {
     const versions = store.getVersions();
-    
     if (versions.length === 0) {
         versionsList.innerHTML = '<p class="text-sm">No saved versions yet.</p>';
         return;
     }
-    
     let html = '<ul style="list-style: none; padding: 0; margin-top: 12px;">';
     versions.forEach(version => {
         html += `
@@ -510,19 +675,16 @@ function renderVersions() {
         `;
     });
     html += '</ul>';
-    
     versionsList.innerHTML = html;
 }
 
 function renderUsers() {
     const users = store.config.users || [];
-    
     if (currentUser?.username === 'admin') {
         addUserFormContainer.classList.remove('hidden');
     } else {
         addUserFormContainer.classList.add('hidden');
     }
-    
     let html = '<ul style="list-style: none; padding: 0; margin-top: 12px;">';
     users.forEach(user => {
         html += `
@@ -542,8 +704,174 @@ function renderUsers() {
         `;
     });
     html += '</ul>';
-    
     usersList.innerHTML = html;
+}
+
+// ------------------------------------------------------------
+// Cloud Sync UI
+// ------------------------------------------------------------
+function renderCloudConfig() {
+    const cfg = store.getCloudConfig();
+    const provider = store.getSettings().cloudProvider || 'none';
+    cloudProviderSelect.value = provider;
+    googleTokenInput.value = cfg.token || '';
+    googleFileIdInput.value = cfg.fileId || '';
+    webdavUrlInput.value = cfg.url || '';
+    webdavUsernameInput.value = cfg.username || '';
+    webdavPasswordInput.value = cfg.password || '';
+    syncIntervalInput.value = cfg.interval || 5;
+    updateCloudConfigVisibility();
+}
+
+function updateCloudConfigVisibility() {
+    const provider = cloudProviderSelect.value;
+    if (provider === 'none') {
+        cloudConfigPanel.classList.add('hidden');
+    } else {
+        cloudConfigPanel.classList.remove('hidden');
+    }
+    googleConfigPanel.classList.toggle('hidden', provider !== 'google');
+    webdavConfigPanel.classList.toggle('hidden', provider !== 'nextcloud');
+}
+
+function saveCloudConfig() {
+    const provider = cloudProviderSelect.value;
+    const cfg = {
+        token: googleTokenInput.value.trim(),
+        fileId: googleFileIdInput.value.trim(),
+        url: webdavUrlInput.value.trim(),
+        username: webdavUsernameInput.value.trim(),
+        password: webdavPasswordInput.value,
+        interval: parseInt(syncIntervalInput.value, 10) || 5
+    };
+    store.updateSettings({ cloudProvider: provider, cloudConfig: cfg });
+    showNotification('Cloud config saved');
+    initSyncPolling();
+}
+
+async function doSyncNow() {
+    updateSyncStatus('syncing', 'Syncing...');
+    const result = await store.syncPush();
+    if (result.ok) {
+        lastSyncResult = { status: 'ok', message: 'Synced' };
+        updateSyncStatus('ok', '✓ Synced');
+    } else {
+        lastSyncResult = { status: 'error', message: result.error };
+        updateSyncStatus('error', '⚠ ' + result.error);
+    }
+}
+
+async function doPullNow() {
+    updateSyncStatus('syncing', 'Pulling...');
+    const result = await store.syncPull();
+    if (result.ok) {
+        if (result.conflict) {
+            const keepRemote = confirm('Remote data is newer. Keep remote version? (Cancel keeps local)');
+            store.resolveSyncConflict(keepRemote);
+            if (keepRemote) {
+                store.data = result.data;
+                store._saveData();
+                renderProjects();
+                updateSyncStatus('ok', '✓ Pulled remote');
+            } else {
+                updateSyncStatus('ok', '✓ Kept local');
+                // Optionally push local back
+                await store.syncPush();
+            }
+        } else {
+            renderProjects();
+            updateSyncStatus('ok', '✓ Pulled');
+        }
+    } else {
+        updateSyncStatus('error', '⚠ ' + result.error);
+    }
+}
+
+function updateSyncStatus(status, text) {
+    syncStatus.textContent = text;
+    syncStatus.className = 'sync-status ' + status;
+}
+
+function initSyncPolling() {
+    stopSyncPolling();
+    const provider = store.getSettings().cloudProvider;
+    if (!provider || provider === 'none') {
+        updateSyncStatus('idle', '—');
+        return;
+    }
+    const cfg = store.getCloudConfig();
+    const minutes = cfg.interval || 5;
+    // Immediate sync
+    doSyncNow();
+    syncIntervalId = setInterval(() => {
+        doSyncNow();
+    }, minutes * 60 * 1000);
+}
+
+function stopSyncPolling() {
+    if (syncIntervalId) {
+        clearInterval(syncIntervalId);
+        syncIntervalId = null;
+    }
+}
+
+// ------------------------------------------------------------
+// Change Log
+// ------------------------------------------------------------
+function renderChangelogProjects() {
+    const projects = store.getProjects();
+    let html = '<option value="">— Select project —</option>';
+    projects.forEach(p => {
+        html += `<option value="${p.id}">${escapeHtml(p.title)}</option>`;
+    });
+    changelogProjectSelect.innerHTML = html;
+}
+
+function renderChangelog() {
+    const projectId = changelogProjectSelect.value;
+    if (!projectId) {
+        changelogList.innerHTML = '<p class="text-sm">Select a project to view history.</p>';
+        return;
+    }
+    const log = store.getChangeLog(projectId);
+    if (!log.length) {
+        changelogList.innerHTML = '<p class="text-sm">No changes recorded yet.</p>';
+        return;
+    }
+    let html = '<ul style="list-style: none; padding: 0; margin-top: 8px;">';
+    log.slice().reverse().forEach(entry => {
+        html += `
+            <li style="padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 0.875rem;">
+                <strong>${entry.datetime}</strong> — ${escapeHtml(entry.user)} changed <em>${entry.field}</em><br>
+                <span style="color: var(--text-secondary);">From:</span> ${escapeHtml(entry.old_value)}<br>
+                <span style="color: var(--text-secondary);">To:</span> ${escapeHtml(entry.new_value)}
+            </li>
+        `;
+    });
+    html += '</ul>';
+    changelogList.innerHTML = html;
+}
+
+function exportChangelogCsv() {
+    const projectId = changelogProjectSelect.value;
+    if (!projectId) return;
+    const project = store.getProject(projectId);
+    const log = store.getChangeLog(projectId);
+    if (!log.length) return;
+    const rows = [
+        ['datetime', 'user', 'field', 'old_value', 'new_value'],
+        ...log.map(e => [e.datetime, e.user, e.field, e.old_value, e.new_value])
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `changelog-${project.title.replace(/\s+/g, '_')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // ------------------------------------------------------------
@@ -556,13 +884,12 @@ function handleClick(event) {
     const actionId = target.getAttribute('data-action-id');
     const versionId = target.getAttribute('data-version-id');
     const username = target.getAttribute('data-username');
-    
+    const logId = target.getAttribute('data-log-id');
+
     if (!action) return;
-    
     event.preventDefault();
-    
+
     switch (action) {
-        // Project actions
         case 'add-project':
             openProjectModal();
             break;
@@ -589,8 +916,6 @@ function handleClick(event) {
             }
             renderProjects();
             break;
-        
-        // Action actions
         case 'add-action':
             openActionModal(projectId);
             break;
@@ -604,16 +929,20 @@ function handleClick(event) {
                 checkStorageWarning();
             }
             break;
-        
-        // Comment actions
+        case 'toggle-log':
+            if (collapsedLogs.has(logId)) {
+                collapsedLogs.delete(logId);
+            } else {
+                collapsedLogs.add(logId);
+            }
+            renderProjects();
+            break;
         case 'add-notes-comment':
             openCommentModal(projectId, null);
             break;
         case 'view-comments':
             openCommentModal(projectId, actionId);
             break;
-        
-        // Settings actions
         case 'restore-version':
             if (confirm('Restore this version? Current unsaved changes will be lost.')) {
                 store.restoreVersion(versionId);
@@ -673,7 +1002,6 @@ function renderCommentsList(comments) {
             <div class="comment-text">${escapeHtml(c.text)}</div>
         </div>
     `).join('');
-    // Scroll to bottom to show latest
     commentsList.scrollTop = commentsList.scrollHeight;
 }
 
@@ -681,7 +1009,6 @@ function handleCommentSubmit(e) {
     e.preventDefault();
     const text = commentTextInput.value.trim();
     if (!text) return;
-
     const { projectId, actionId } = commentContext;
     if (actionId) {
         store.addActionComment(projectId, actionId, currentUser.username, text);
@@ -689,8 +1016,6 @@ function handleCommentSubmit(e) {
         store.addNotesComment(projectId, currentUser.username, text);
     }
     commentForm.reset();
-
-    // Refresh comments list
     const project = store.getProject(projectId);
     let comments;
     if (actionId) {
@@ -700,12 +1025,12 @@ function handleCommentSubmit(e) {
         comments = project?.notesComments || [];
     }
     renderCommentsList(comments);
-    renderProjects(); // update comment count badges
+    renderProjects();
     checkStorageWarning();
 }
 
 // ------------------------------------------------------------
-// Import/Export
+// Import/Export / Save-As
 // ------------------------------------------------------------
 function exportData() {
     const data = store.exportData();
@@ -720,6 +1045,21 @@ function exportData() {
     URL.revokeObjectURL(url);
 }
 
+function saveAsData() {
+    const label = prompt('File name (optional):', `pml-backup-${new Date().toISOString().split('T')[0]}`);
+    if (label === null) return;
+    const data = store.exportData();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${label || 'pml-backup'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 function importData() {
     importFileInput.click();
 }
@@ -727,7 +1067,6 @@ function importData() {
 function handleFileImport(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
     const reader = new FileReader();
     reader.onload = function(e) {
         const content = e.target.result;
@@ -740,8 +1079,6 @@ function handleFileImport(event) {
         }
     };
     reader.readAsText(file);
-    
-    // Reset input
     event.target.value = '';
 }
 
@@ -755,7 +1092,6 @@ function escapeHtml(text) {
 }
 
 function showNotification(message) {
-    // Simple notification for now
     const notification = document.createElement('div');
     notification.textContent = message;
     notification.style.cssText = `
@@ -771,83 +1107,6 @@ function showNotification(message) {
     `;
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
-}
-
-// ------------------------------------------------------------
-// Event Listeners
-// ------------------------------------------------------------
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize
-    initTheme();
-    initLayout();
-    initAuth();
-    
-    // Event listeners
-    loginForm.addEventListener('submit', handleLogin);
-    themeToggle.addEventListener('click', toggleTheme);
-    layoutToggle.addEventListener('click', toggleLayout);
-    settingsToggle.addEventListener('click', openSettings);
-    settingsClose.addEventListener('click', closeSettings);
-    addProjectBtn.addEventListener('click', () => openProjectModal());
-    projectForm.addEventListener('submit', handleProjectSubmit);
-    projectCancelBtn.addEventListener('click', closeProjectModal);
-    actionForm.addEventListener('submit', handleActionSubmit);
-    actionCancelBtn.addEventListener('click', closeActionModal);
-    commentCloseBtn.addEventListener('click', closeCommentModal);
-    commentForm.addEventListener('submit', handleCommentSubmit);
-    overlay.addEventListener('click', () => {
-        closeProjectModal();
-        closeActionModal();
-        closeCommentModal();
-        closeSettings();
-    });
-    exportBtn.addEventListener('click', exportData);
-    importBtn.addEventListener('click', importData);
-    importFileInput.addEventListener('change', handleFileImport);
-    saveVersionBtn.addEventListener('click', () => {
-        const label = prompt('Version label (optional):');
-        store.saveVersion(label);
-        renderVersions();
-        showNotification('Version saved!');
-    });
-    
-    // Event delegation
-    document.addEventListener('click', handleClick);
-    
-    // Handle escape key
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            closeProjectModal();
-            closeActionModal();
-            closeCommentModal();
-            closeSettings();
-        }
-    });
-    
-    addUserForm.addEventListener('submit', handleAddUserSubmit);
-});
-
-function handleAddUserSubmit(event) {
-    event.preventDefault();
-    
-    const username = newUsernameInput.value.trim();
-    const password = newPasswordInput.value;
-    const role = newRoleInput.value;
-    
-    if (!username || !password) {
-        alert('Username and password are required');
-        return;
-    }
-    
-    if (store.getUser(username)) {
-        alert('User already exists');
-        return;
-    }
-    
-    store.addUser({ username, password, role });
-    addUserForm.reset();
-    renderUsers();
-    showNotification('User added successfully');
 }
 
 function checkStorageWarning() {
@@ -887,12 +1146,104 @@ function showUpdateNotification(newWorker) {
 }
 
 // ------------------------------------------------------------
+// Event Listeners
+// ------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    initLayout();
+    initAuth();
+
+    loginForm.addEventListener('submit', handleLogin);
+    themeToggle.addEventListener('click', toggleTheme);
+    layoutToggle.addEventListener('click', toggleLayout);
+    settingsToggle.addEventListener('click', openSettings);
+    settingsClose.addEventListener('click', closeSettings);
+    addProjectBtn.addEventListener('click', () => openProjectModal());
+    projectForm.addEventListener('submit', handleProjectSubmit);
+    projectCancelBtn.addEventListener('click', closeProjectModal);
+    actionForm.addEventListener('submit', handleActionSubmit);
+    actionCancelBtn.addEventListener('click', closeActionModal);
+    commentCloseBtn.addEventListener('click', closeCommentModal);
+    commentForm.addEventListener('submit', handleCommentSubmit);
+    overlay.addEventListener('click', () => {
+        closeProjectModal();
+        closeActionModal();
+        closeCommentModal();
+        closeSettings();
+    });
+    exportBtn.addEventListener('click', exportData);
+    saveAsBtn.addEventListener('click', saveAsData);
+    importBtn.addEventListener('click', importData);
+    importFileInput.addEventListener('change', handleFileImport);
+    saveVersionBtn.addEventListener('click', () => {
+        const label = prompt('Version label (optional):');
+        store.saveVersion(label);
+        renderVersions();
+        showNotification('Version saved!');
+    });
+
+    // Filters
+    searchInput.addEventListener('input', handleFilterChange);
+    filterStatus.addEventListener('change', handleFilterChange);
+    filterDateFrom.addEventListener('change', handleFilterChange);
+    filterDateTo.addEventListener('change', handleFilterChange);
+    filterOwner.addEventListener('input', handleFilterChange);
+    sortSelect.addEventListener('change', handleFilterChange);
+    clearFiltersBtn.addEventListener('click', clearFilters);
+
+    // Cloud sync
+    cloudProviderSelect.addEventListener('change', updateCloudConfigVisibility);
+    saveCloudBtn.addEventListener('click', saveCloudConfig);
+    syncNowBtn.addEventListener('click', doSyncNow);
+    pullNowBtn.addEventListener('click', doPullNow);
+
+    // Changelog
+    changelogProjectSelect.addEventListener('change', renderChangelog);
+    exportChangelogBtn.addEventListener('click', exportChangelogCsv);
+
+    // Event delegation
+    document.addEventListener('click', handleClick);
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeProjectModal();
+            closeActionModal();
+            closeCommentModal();
+            closeSettings();
+        }
+    });
+
+    addUserForm.addEventListener('submit', handleAddUserSubmit);
+});
+
+function handleAddUserSubmit(event) {
+    event.preventDefault();
+    const username = newUsernameInput.value.trim();
+    const password = newPasswordInput.value;
+    const role = newRoleInput.value;
+    if (!username || !password) {
+        alert('Username and password are required');
+        return;
+    }
+    if (store.getUser(username)) {
+        alert('User already exists');
+        return;
+    }
+    store.addUser({ username, password, role });
+    addUserForm.reset();
+    renderUsers();
+    showNotification('User added successfully');
+}
+
+// ------------------------------------------------------------
 // Offline detection
 // ------------------------------------------------------------
 window.addEventListener('online', () => {
     showNotification('Back online');
+    initSyncPolling();
 });
 
 window.addEventListener('offline', () => {
     showNotification('Working offline');
+    stopSyncPolling();
 });

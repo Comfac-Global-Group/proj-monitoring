@@ -65,6 +65,26 @@ function formatDisplayDate(dateString) {
     return `${day} ${month} ${year}`;
 }
 
+/**
+ * Parse yymmdd-prefixed log entries from action text
+ * @param {string} text
+ * @returns {{date: string, text: string}[]}
+ */
+function parseActionLog(text) {
+    if (!text) return [];
+    const entries = [];
+    const logPattern = /^(\d{6})\s*[-–]?\s*(.*)$/;
+    text.split('\n').forEach(line => {
+        line = line.trim();
+        if (!line) return;
+        const m = logPattern.match(line);
+        if (m) {
+            entries.push({ date: m[1], text: m[2].trim() });
+        }
+    });
+    return entries;
+}
+
 // ------------------------------------------------------------
 // Data Model (as per FRD Section 4)
 // ------------------------------------------------------------
@@ -78,6 +98,9 @@ function formatDisplayDate(dateString) {
  * @property {string} details - short description / details
  * @property {string} notes - rich text / links / file refs
  * @property {Action[]} actions - array of Action objects
+ * @property {Comment[]} notesComments
+ * @property {ChangeLogEntry[]} change_log
+ * @property {string} project_due_date - YYYY-MM-DD
  * @property {string} created_at - yymmdd-hhmmss
  * @property {string} updated_at - yymmdd-hhmmss
  */
@@ -88,7 +111,10 @@ function formatDisplayDate(dateString) {
  * @property {string} id - uuid
  * @property {string} text - rich text action description
  * @property {string} due_date - YYYY-MM-DD
+ * @property {string} owner - assignee name
+ * @property {string} issue - cause of delay
  * @property {Comment[]} comments - array of Comment objects
+ * @property {{date: string, text: string}[]} log_entries - parsed from text
  * @property {string} created_at - yymmdd-hhmmss
  * @property {string} updated_at - yymmdd-hhmmss
  */
@@ -249,7 +275,10 @@ class Store {
             status: 'open',
             details: projectData.details || '',
             notes: projectData.notes || '',
+            project_due_date: projectData.project_due_date || '',
             actions: [],
+            notesComments: [],
+            change_log: [],
             created_at: timestamp,
             updated_at: timestamp
         };
@@ -263,15 +292,39 @@ class Store {
      * @param {string} projectId
      * @param {Object} updates
      */
-    updateProject(projectId, updates) {
+    updateProject(projectId, updates, user = 'system') {
         const project = this.getProject(projectId);
         if (!project) return null;
 
+        const timestamp = getTimestamp();
+        // Append change log for tracked fields
+        ['title', 'status', 'details', 'notes', 'project_due_date'].forEach(field => {
+            if (updates.hasOwnProperty(field) && project[field] !== updates[field]) {
+                this._appendChangeLog(project, user, field, project[field], updates[field], timestamp);
+            }
+        });
+
         Object.assign(project, updates, {
-            updated_at: getTimestamp()
+            updated_at: timestamp
         });
         this._saveData();
         return project;
+    }
+
+    _appendChangeLog(project, user, field, oldValue, newValue, timestamp) {
+        if (!project.change_log) project.change_log = [];
+        project.change_log.push({
+            user,
+            datetime: timestamp,
+            field,
+            old_value: String(oldValue ?? ''),
+            new_value: String(newValue ?? '')
+        });
+    }
+
+    getChangeLog(projectId) {
+        const project = this.getProject(projectId);
+        return project?.change_log || [];
     }
 
     /**
@@ -319,11 +372,15 @@ class Store {
         if (!project) return null;
 
         const timestamp = getTimestamp();
+        const text = actionData.text || '';
         const action = {
             id: generateId(),
-            text: actionData.text || '',
+            text,
             due_date: actionData.due_date || '',
+            owner: actionData.owner || '',
+            issue: actionData.issue || '',
             comments: [],
+            log_entries: parseActionLog(text),
             created_at: timestamp,
             updated_at: timestamp
         };
@@ -339,17 +396,27 @@ class Store {
      * @param {string} actionId
      * @param {Object} updates
      */
-    updateAction(projectId, actionId, updates) {
+    updateAction(projectId, actionId, updates, user = 'system') {
         const project = this.getProject(projectId);
         if (!project) return null;
 
         const action = project.actions.find(a => a.id === actionId);
         if (!action) return null;
 
-        Object.assign(action, updates, {
-            updated_at: getTimestamp()
+        const timestamp = getTimestamp();
+        if (updates.hasOwnProperty('text') && action.text !== updates.text) {
+            updates.log_entries = parseActionLog(updates.text);
+        }
+        ['text', 'due_date', 'owner', 'issue'].forEach(field => {
+            if (updates.hasOwnProperty(field) && action[field] !== updates[field]) {
+                this._appendChangeLog(project, user, `action.${field}`, action[field], updates[field], timestamp);
+            }
         });
-        project.updated_at = getTimestamp();
+
+        Object.assign(action, updates, {
+            updated_at: timestamp
+        });
+        project.updated_at = timestamp;
         this._saveData();
         return action;
     }
@@ -527,6 +594,121 @@ class Store {
     }
 
     // --------------------------------------------------------
+    // Cloud Sync (R-006 / R-007)
+    // --------------------------------------------------------
+
+    getCloudConfig() {
+        return this.config.settings.cloudConfig || {};
+    }
+
+    async syncPush() {
+        const cfg = this.getCloudConfig();
+        const provider = this.config.settings.cloudProvider;
+        if (!provider || provider === 'none') return { ok: false, error: 'No provider configured' };
+        const payload = this.exportData();
+        try {
+            if (provider === 'google') {
+                return await this._pushGoogleDrive(cfg, payload);
+            }
+            if (provider === 'nextcloud') {
+                return await this._pushWebDAV(cfg, payload);
+            }
+        } catch (e) {
+            return { ok: false, error: e.message };
+        }
+        return { ok: false, error: 'Unknown provider' };
+    }
+
+    async syncPull() {
+        const cfg = this.getCloudConfig();
+        const provider = this.config.settings.cloudProvider;
+        if (!provider || provider === 'none') return { ok: false, error: 'No provider configured' };
+        try {
+            let remoteText;
+            if (provider === 'google') {
+                const res = await this._pullGoogleDrive(cfg);
+                if (!res.ok) return res;
+                remoteText = res.data;
+            } else if (provider === 'nextcloud') {
+                const res = await this._pullWebDAV(cfg);
+                if (!res.ok) return res;
+                remoteText = res.data;
+            }
+            const remoteData = JSON.parse(remoteText);
+            const conflict = this._detectConflict(remoteData);
+            if (conflict) {
+                return { ok: true, data: remoteData, conflict: true, remoteUpdatedAt: remoteData.projects?.[0]?.updated_at || '' };
+            }
+            this.data = remoteData;
+            this._saveData();
+            return { ok: true, data: remoteData, conflict: false };
+        } catch (e) {
+            return { ok: false, error: e.message };
+        }
+    }
+
+    _detectConflict(remoteData) {
+        const localUpdated = this.getProjects().reduce((max, p) => p.updated_at > max ? p.updated_at : max, '');
+        const remoteProjects = remoteData?.projects || [];
+        const remoteUpdated = remoteProjects.reduce((max, p) => p.updated_at > max ? p.updated_at : max, '');
+        return localUpdated && remoteUpdated && localUpdated !== remoteUpdated;
+    }
+
+    resolveSyncConflict(keepRemote) {
+        // If keepRemote is false, we already have local data; just push later.
+        // This method is a hook for the UI to decide.
+        return { resolved: true, strategy: keepRemote ? 'remote' : 'local' };
+    }
+
+    async _pushGoogleDrive(cfg, payload) {
+        const url = `https://www.googleapis.com/upload/drive/v3/files/${cfg.fileId}?uploadType=media`;
+        const res = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${cfg.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: payload
+        });
+        if (!res.ok) throw new Error(`Google Drive push failed: ${res.status}`);
+        return { ok: true };
+    }
+
+    async _pullGoogleDrive(cfg) {
+        const url = `https://www.googleapis.com/drive/v3/files/${cfg.fileId}?alt=media`;
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${cfg.token}` }
+        });
+        if (!res.ok) throw new Error(`Google Drive pull failed: ${res.status}`);
+        const text = await res.text();
+        return { ok: true, data: text };
+    }
+
+    async _pushWebDAV(cfg, payload) {
+        const res = await fetch(cfg.url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Basic ' + btoa(cfg.username + ':' + cfg.password),
+                'Content-Type': 'application/json'
+            },
+            body: payload
+        });
+        if (!res.ok) throw new Error(`WebDAV push failed: ${res.status}`);
+        return { ok: true };
+    }
+
+    async _pullWebDAV(cfg) {
+        const res = await fetch(cfg.url, {
+            headers: {
+                'Authorization': 'Basic ' + btoa(cfg.username + ':' + cfg.password)
+            }
+        });
+        if (!res.ok) throw new Error(`WebDAV pull failed: ${res.status}`);
+        const text = await res.text();
+        return { ok: true, data: text };
+    }
+
+    // --------------------------------------------------------
     // Version snapshots
     // --------------------------------------------------------
 
@@ -625,4 +807,4 @@ class Store {
 const store = new Store();
 
 // Export store and utilities
-export { store, generateId, getTimestamp, isoToTimestamp, timestampToIso, formatDisplayDate };
+export { store, generateId, getTimestamp, isoToTimestamp, timestampToIso, formatDisplayDate, parseActionLog };

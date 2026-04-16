@@ -12,9 +12,10 @@
 <body>
     <header class="header">
         <div class="header-left">
-            <h1 class="app-title">PML <span class="version-badge" id="version-badge">v0.1.0</span></h1>
+            <h1 class="app-title">PML <span class="version-badge" id="version-badge">v0.3.0</span></h1>
         </div>
         <div class="header-right">
+            <span id="sync-status" class="sync-status" title="Sync status">—</span>
             <button class="icon-button" id="theme-toggle" aria-label="Toggle theme">🌙</button>
             <button class="icon-button" id="layout-toggle" aria-label="Toggle phone/desktop layout">📱</button>
             <button class="icon-button" id="settings-toggle" aria-label="Open settings">⚙️</button>
@@ -50,6 +51,25 @@
                     <h2>Projects</h2>
                     <button class="btn btn-secondary" id="add-project-btn">+ Add Project</button>
                 </div>
+                <div class="filters-bar">
+                    <input type="text" id="search-input" placeholder="Search projects or actions..." class="filter-input">
+                    <select id="filter-status" class="filter-select">
+                        <option value="all">All statuses</option>
+                        <option value="open">Open</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                    <input type="date" id="filter-date-from" class="filter-date" title="Due from">
+                    <input type="date" id="filter-date-to" class="filter-date" title="Due to">
+                    <input type="text" id="filter-owner" placeholder="Filter by owner" class="filter-input" style="max-width: 140px;">
+                    <select id="sort-select" class="filter-select">
+                        <option value="default">Sort: Default</option>
+                        <option value="due_date">Due Date</option>
+                        <option value="status">Status</option>
+                        <option value="updated">Last Updated</option>
+                        <option value="name">Project Name</option>
+                    </select>
+                    <button class="btn btn-small btn-secondary" id="clear-filters-btn">Clear</button>
+                </div>
                 <div id="projects-list" class="projects-list">
                     <!-- Projects will be inserted here -->
                     <div class="empty-state">
@@ -69,6 +89,7 @@
                 <div class="settings-section">
                     <h3>Data Management</h3>
                     <button class="btn btn-secondary" id="export-btn">Export All Data (.json)</button>
+                    <button class="btn btn-secondary" id="save-as-btn">Save As (.json)</button>
                     <button class="btn btn-secondary" id="import-btn">Import Data</button>
                     <input type="file" id="import-file" accept=".json" hidden>
                 </div>
@@ -81,13 +102,52 @@
                         <option value="nextcloud">Nextcloud / Seafile</option>
                     </select>
                     <div id="cloud-config" class="cloud-config hidden">
-                        <!-- Configuration fields will be shown based on selection -->
+                        <div id="google-config" class="hidden">
+                            <div class="form-group">
+                                <label>OAuth Access Token</label>
+                                <input type="text" id="google-token" placeholder="ya29.xxx">
+                            </div>
+                            <div class="form-group">
+                                <label>Drive File ID</label>
+                                <input type="text" id="google-file-id" placeholder="1BxiMVs0XRA5nFMdL...">
+                            </div>
+                        </div>
+                        <div id="webdav-config" class="hidden">
+                            <div class="form-group">
+                                <label>WebDAV URL (full path to .json file)</label>
+                                <input type="text" id="webdav-url" placeholder="https://nextcloud.example.com/remote.php/dav/files/user/data.json">
+                            </div>
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="webdav-username">
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="webdav-password">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label>Auto-sync interval (minutes)</label>
+                            <input type="number" id="sync-interval" value="5" min="1" max="60">
+                        </div>
+                        <button class="btn btn-primary btn-small" id="save-cloud-btn">Save Config</button>
+                        <button class="btn btn-secondary btn-small" id="sync-now-btn">Sync Now</button>
+                        <button class="btn btn-secondary btn-small" id="pull-now-btn">Pull Now</button>
                     </div>
                 </div>
                 <div class="settings-section">
                     <h3>Version Snapshots</h3>
                     <button class="btn btn-secondary" id="save-version-btn">Save Current Version</button>
                     <div id="versions-list"></div>
+                </div>
+                <div class="settings-section">
+                    <h3>Audit / Change Log</h3>
+                    <p>Select a project to view its edit history.</p>
+                    <select id="changelog-project-select">
+                        <option value="">— Select project —</option>
+                    </select>
+                    <div id="changelog-list" style="margin-top: 12px;"></div>
+                    <button class="btn btn-secondary btn-small" id="export-changelog-btn" style="margin-top: 8px;">Export as CSV</button>
                 </div>
                 <div class="settings-section">
                     <h3>User Management</h3>
@@ -133,6 +193,10 @@
                     <textarea id="project-notes" rows="3" placeholder="Rich text, links, file references"></textarea>
                 </div>
                 <div class="form-group">
+                    <label for="project-due-date">Project Due Date</label>
+                    <input type="date" id="project-due-date">
+                </div>
+                <div class="form-group">
                     <label>
                         <input type="checkbox" id="project-status"> Open
                     </label>
@@ -156,6 +220,14 @@
                 <div class="form-group">
                     <label for="action-due-date">Due Date</label>
                     <input type="date" id="action-due-date">
+                </div>
+                <div class="form-group">
+                    <label for="action-owner">Owner</label>
+                    <input type="text" id="action-owner" placeholder="Assignee name">
+                </div>
+                <div class="form-group">
+                    <label for="action-issue">Issue / Cause of Delay</label>
+                    <input type="text" id="action-issue" placeholder="e.g. waiting for quotation">
                 </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary">Save</button>
