@@ -11,6 +11,7 @@ let isPhoneLayout = false;
 const collapsedProjects = new Set();
 const collapsedLogs = new Set();
 const collapsedDoneActions = new Set();
+const collapsedNotes = new Set();
 let closedSectionCollapsed = store.getSettings().closedSectionCollapsed || false;
 let commentContext = { projectId: null, actionId: null };
 let syncIntervalId = null;
@@ -412,6 +413,7 @@ function renderProjects() {
 function renderProjectCard(project) {
     const isClosed = project.status === 'closed';
     const isCollapsed = collapsedProjects.has(project.id);
+    const isNotesCollapsed = collapsedNotes.has(project.id);
     const actionsHtml = renderActions(project);
 
     return `
@@ -441,13 +443,18 @@ function renderProjectCard(project) {
 
                 ${project.notes ? `
                     <div class="project-notes">
-                        <h4>Notes</h4>
-                        <div class="project-notes-content">${linkifyText(escapeHtml(project.notes))}</div>
-                        ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
-                            <button class="action-comments" data-action="add-notes-comment" data-project-id="${project.id}">
-                                💬 Comment${project.notesComments?.length ? ` (${project.notesComments.length})` : ''}
-                            </button>
-                        ` : ''}
+                        <div class="project-notes-header" data-action="toggle-notes" data-project-id="${project.id}">
+                            <h4>Notes</h4>
+                            <button class="btn btn-small btn-text">${isNotesCollapsed ? '▶ Show' : '▼ Hide'}</button>
+                        </div>
+                        <div class="project-notes-body ${isNotesCollapsed ? 'hidden' : ''}">
+                            <div class="project-notes-content">${linkifyText(escapeHtml(project.notes))}</div>
+                            ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
+                                <button class="action-comments" data-action="add-notes-comment" data-project-id="${project.id}">
+                                    💬 Comment${project.notesComments?.length ? ` (${project.notesComments.length})` : ''}
+                                </button>
+                            ` : ''}
+                        </div>
                     </div>
                 ` : ''}
 
@@ -480,25 +487,16 @@ function renderActions(project) {
         return '<p class="text-sm" style="color: var(--text-tertiary);">No actions yet</p>';
     }
 
-    let html = '';
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     const doneActions = project.actions.filter(a => a.done);
     const undoneActions = project.actions.filter(a => !a.done);
     const hideDone = collapsedDoneActions.has(project.id);
-    const visibleActions = [...undoneActions, ...(hideDone ? [] : doneActions)];
 
-    if (doneActions.length > 0) {
-        html += `
-            <div class="done-actions-toggle">
-                <button class="btn btn-small btn-text" data-action="toggle-done-actions" data-project-id="${project.id}">
-                    ${hideDone ? `▶ Show done actions (${doneActions.length})` : '▼ Hide done actions'}
-                </button>
-            </div>
-        `;
-    }
+    let html = '';
 
-    visibleActions.forEach(action => {
+    // Helper to render a single action
+    function renderActionItem(action) {
         let dueDateClass = '';
         let dueDateText = '';
         if (action.due_date) {
@@ -514,8 +512,7 @@ function renderActions(project) {
         const commentsCount = action.comments ? action.comments.length : 0;
         const hasLogs = action.log_entries && action.log_entries.length > 0;
         const logsCollapsed = collapsedLogs.has(action.id);
-
-        html += `
+        return `
             <div class="action-item ${action.done ? 'done' : ''}" data-action-id="${action.id}">
                 <div class="action-main">
                     <div class="action-text">${escapeHtml(action.text)}</div>
@@ -556,7 +553,31 @@ function renderActions(project) {
                 </div>
             </div>
         `;
-    });
+    }
+
+    // Active actions
+    if (undoneActions.length === 0) {
+        html += '<p class="text-sm" style="color: var(--text-tertiary);">No active actions</p>';
+    } else {
+        undoneActions.forEach(action => {
+            html += renderActionItem(action);
+        });
+    }
+
+    // Closed Actions section
+    if (doneActions.length > 0) {
+        html += `
+            <div class="closed-actions-section">
+                <div class="closed-actions-header" data-action="toggle-done-actions" data-project-id="${project.id}">
+                    <h4>Closed Actions (${doneActions.length})</h4>
+                    <button class="btn btn-small btn-text">${hideDone ? '▶ Show' : '▼ Hide'}</button>
+                </div>
+                <div class="closed-actions-list ${hideDone ? 'hidden' : ''}">
+                    ${doneActions.map(action => renderActionItem(action)).join('')}
+                </div>
+            </div>
+        `;
+    }
 
     return html;
 }
@@ -996,6 +1017,14 @@ function handleClick(event) {
                 collapsedDoneActions.delete(projectId);
             } else {
                 collapsedDoneActions.add(projectId);
+            }
+            renderProjects();
+            break;
+        case 'toggle-notes':
+            if (collapsedNotes.has(projectId)) {
+                collapsedNotes.delete(projectId);
+            } else {
+                collapsedNotes.add(projectId);
             }
             renderProjects();
             break;

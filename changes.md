@@ -8,11 +8,29 @@
 
 ## Current Version
 
-**v0.3.1** — `260416-1532` — Agent: Kimi Code CLI — **DONE**
+**v0.3.2** — `260416-1700` — Agent: deepseek-reasoner — **DONE**
 
 ---
 
 ## Version History
+
+### v0.3.2 | 260416-1700 | DONE
+**Agent:** deepseek-reasoner
+**Changes:**
+- PML v0.3.2 Feature 1: Collapsible Project Notes — Notes block inside each project is now collapsible with a Show/Hide toggle (collapsed by default).
+- PML v0.3.2 Feature 2: Closed Actions Section — Done actions are now grouped into a dedicated "Closed Actions" sub‑header within each project, collapsible using the existing `collapsedDoneActions` state.
+- Updated `renderActions()` to separate undone/done actions and render done actions in a dedicated section.
+- Added CSS for `.closed-actions-section`, `.closed-actions-header`, `.closed-actions-list`.
+- Added `collapsedNotes` Set and toggle‑notes handler.
+
+**What you should see:**
+- Version badge: `v0.3.2`
+- Service worker cache: `pml-260416-1700`
+- Project Notes have a "Notes" header with Show/Hide button (collapsed by default).
+- Done actions appear under a "Closed Actions (N)" sub‑header inside each project, collapsible with a Show/Hide button.
+- All existing action features (due dates, owner, issue, comments, logs, edit, delete) work inside the closed section.
+
+---
 
 ### v0.3.1 | 260416-1532 | DONE
 **Agent:** Kimi Code CLI

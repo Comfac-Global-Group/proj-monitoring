@@ -378,6 +378,20 @@ body {
     margin-bottom: 8px;
 }
 
+.project-notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+.project-notes-header h4 {
+    margin: 0;
+}
+.project-notes-body.hidden {
+    display: none;
+}
+
 .project-notes-content {
     color: var(--text-secondary);
     white-space: pre-wrap;
@@ -890,6 +904,38 @@ body {
 }
 .action-item.done .action-meta-row {
     opacity: 0.7;
+}
+
+/* Closed actions section */
+.closed-actions-section {
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+.closed-actions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+.closed-actions-header h4 {
+    font-size: 0.875rem;
+    margin: 0;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.closed-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.closed-actions-list .action-item.done {
+    opacity: 0.8;
 }
 
 /* Closed projects section */
