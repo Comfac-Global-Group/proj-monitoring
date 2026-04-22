@@ -8,7 +8,28 @@
 
 ## Current Version
 
-**v0.3.7** — `260416-2029` — Agent: Kimi Code CLI — **DONE**
+**v0.3.8** — `260422-1335` — Agent: Kimi Code CLI — **DONE**
+
+---
+
+## Version History
+
+### v0.3.8 | 260422-1335 | DONE
+**Agent:** Kimi Code CLI  
+**Changes:**
+- Per-action expand/collapse for closed (done) actions.
+- Closed actions now render with a "▼ Collapse" / "▶ Expand" toggle on each action item.
+- Collapsed closed actions show a compact view: action text, due date, and timestamp only.
+- Expanded closed actions show full details: owner, issue, logs, comments, edit/delete controls.
+- New `collapsedClosedActions` Set tracks per-action collapse state independently of the section-level Show/Hide toggle.
+- New CSS class `.action-item.closed.collapsed` for compact styling.
+
+**What you should see:**
+- Version badge: `v0.3.8`
+- Service worker cache: `pml-260422-1335`
+- Open the "Closed Actions" section on any project with done actions.
+- Each done action has a Collapse button; collapsed actions show an Expand button.
+- Comments can still be opened from a collapsed closed action.
 
 ---
 

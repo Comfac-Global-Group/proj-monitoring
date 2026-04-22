@@ -12,6 +12,7 @@ const collapsedProjects = new Set();
 const collapsedLogs = new Set();
 const collapsedDoneActions = new Set();
 const collapsedNotes = new Set();
+const collapsedClosedActions = new Set();
 let collapseDefaultsInitialized = false;
 
 function initializeCollapseDefaults(projects) {
@@ -536,6 +537,32 @@ function renderActions(project) {
         const commentsCount = action.comments ? action.comments.length : 0;
         const hasLogs = action.log_entries && action.log_entries.length > 0;
         const logsCollapsed = collapsedLogs.has(action.id);
+        const isClosedActionCollapsed = action.status === 'closed' && collapsedClosedActions.has(action.id);
+
+        if (isClosedActionCollapsed) {
+            return `
+                <div class="action-item closed collapsed" data-action-id="${action.id}">
+                    <div class="action-main">
+                        <div class="action-text">${escapeHtml(action.text)}</div>
+                        <div class="action-meta-row">
+                            ${action.due_date ? `<span class="action-due-date ${dueDateClass}">📅 ${dueDateText}</span>` : ''}
+                            ${action.created_at ? `<span class="action-timestamp">🕒 ${escapeHtml(action.created_at.slice(0,6))}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="action-controls">
+                        ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
+                            <button class="action-comments" data-action="view-comments" data-project-id="${project.id}" data-action-id="${action.id}">
+                                💬 ${commentsCount}
+                            </button>
+                        ` : ''}
+                        <button class="btn btn-small btn-text" data-action="toggle-closed-action" data-closed-action-id="${action.id}">
+                            ▶ Expand
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
         return `
             <div class="action-item ${action.status === 'closed' ? 'closed' : ''}" data-action-id="${action.id}">
                 <div class="action-main">
@@ -563,6 +590,11 @@ function renderActions(project) {
                     ` : ''}
                 </div>
                 <div class="action-controls">
+                    ${action.status === 'closed' ? `
+                        <button class="btn btn-small btn-text" data-action="toggle-closed-action" data-closed-action-id="${action.id}">
+                            ▼ Collapse
+                        </button>
+                    ` : ''}
                     ${currentUser?.role === 'commenter' || currentUser?.role === 'editor' ? `
                         <button class="action-comments" data-action="view-comments" data-project-id="${project.id}" data-action-id="${action.id}">
                             💬 ${commentsCount}
@@ -1044,6 +1076,17 @@ function handleClick(event) {
                 collapsedDoneActions.add(projectId);
             }
             renderProjects();
+            break;
+        case 'toggle-closed-action':
+            {
+                const closedActionId = target.getAttribute('data-closed-action-id');
+                if (collapsedClosedActions.has(closedActionId)) {
+                    collapsedClosedActions.delete(closedActionId);
+                } else {
+                    collapsedClosedActions.add(closedActionId);
+                }
+                renderProjects();
+            }
             break;
         case 'toggle-notes':
             if (collapsedNotes.has(projectId)) {

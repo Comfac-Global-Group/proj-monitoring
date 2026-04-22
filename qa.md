@@ -3,7 +3,7 @@
 **Repo:** https://github.com/Comfac-Global-Group/proj-monitoring
 **Status:** OPEN
 **Created:** 260415-120000
-**Last Updated:** 260415-213300
+**Last Updated:** 260422-133500
 
 ---
 
@@ -71,7 +71,7 @@ Settings (⚙️) → User Management → click Delete next to the user. The `ad
 | Q-026 | 260415-120000 | CLOSED | License mismatch: `package.json` declares MIT but `LICENSE` file is GNU GPL v3 | **Fixed 260416**: `package.json` and `README.md` updated to GPL-3.0 to match `LICENSE`. |
 | Q-029 | 260416-1028 | CLOSED | Cannot save new or edited actions in v0.3.0 | **Fixed 260416**: `parseActionLog()` used `logPattern.match(line)` instead of `line.match(logPattern)`, causing a TypeError on every action save. |
 | Q-030 | 260416-1029 | CLOSED | Settings panel appears grayed out and unclickable | **Fixed 260416**: `.settings-panel` z-index was 1000, below `.overlay` (1500). Raised settings panel to `z-index: 1600`. |
-| Q-031 | 260416-1500 | OPEN | Real-world data: Canvasing AVR/Transformer shows need for split actions + collapsible done actions | Long-running project with 50+ dated action lines. Each `yymmdd - text` line should be its own Action. Done actions must be collapsible. Closed projects need a separate bottom section. |
+| Q-031 | 260416-1500 | CLOSED | Real-world data: Canvasing AVR/Transformer shows need for split actions + collapsible done actions | **Fixed 260422**: Action log splitting implemented in v0.3.1. Section-level Show/Hide for closed actions implemented in v0.3.2. Per-action expand/collapse implemented in v0.3.8. |
 
 ---
 
@@ -97,6 +97,7 @@ Settings (⚙️) → User Management → click Delete next to the user. The `ad
 | Q-014 | 260415-120000 | OPEN | Commenter role: comment bubble on Notes field — it is not obvious that Notes comments are separate from Action comments | Use distinct styling: Notes comment bubble should be a different color or icon. |
 | Q-015 | 260415-120000 | OPEN | Login screen: no "forgot password" or account recovery flow | Acceptable for MVP (low-stakes). Document that password reset = edit `config.json` directly. |
 | Q-016 | 260415-120000 | OPEN | Calendar date picker: native `<input type="date">` is ugly on older browsers/PCs | Use native for MVP. If it breaks on target PCs, swap to a lightweight picker (e.g. Pikaday). |
+| Q-033 | 260422-1335 | CLOSED | Done tasks have no per-action expand/collapse; entire section is either all-visible or all-hidden | **Fixed 260422**: Added per-action Collapse/Expand toggle on each closed action. Collapsed view shows compact summary (text + due date + timestamp). Expanded view shows full meta, logs, comments, and edit controls. |
 | Q-017 | 260415-120000 | OPEN | Action text entries in the spreadsheet use `yymmdd - text` format (e.g. `260415 - for follow up`) — app should render these as a timeline/log, not a blob of text | Nice-to-have parse: detect `yymmdd - ` prefix and render as dated log entries. Post-MVP. |
 | Q-018 | 260415-120000 | OPEN | No keyboard shortcuts (add action, save, close project) | Post-MVP. Document common shortcuts (Ctrl+S = save, Escape = deselect). |
 

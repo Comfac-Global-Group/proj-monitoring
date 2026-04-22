@@ -954,6 +954,29 @@ body {
     opacity: 0.8;
 }
 
+/* Collapsed individual closed action */
+.action-item.closed.collapsed {
+    padding: 8px 12px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+}
+.action-item.closed.collapsed .action-text {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.action-item.closed.collapsed .action-meta-row {
+    margin-top: 2px;
+    font-size: 0.75rem;
+}
+.action-item.closed.collapsed .action-controls {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
 /* Closed projects section */
 .closed-projects-section {
     margin-top: 32px;
