@@ -8,7 +8,25 @@
 
 ## Current Version
 
-**v0.3.8** — `260422-1335` — Agent: Kimi Code CLI — **DONE**
+**v0.3.9** — `260422-1447` — Agent: Kimi Code CLI — **DONE**
+
+---
+
+## Version History
+
+### v0.3.9 | 260422-1447 | DONE
+**Agent:** Kimi Code CLI  
+**Changes:**
+- **Mobile layout fixes (Q-034):**
+  - Moved desktop grid from `.projects-list` to `.open-projects-list` and `.closed-projects-list`. This prevents open and closed project sections from appearing side-by-side as grid items.
+  - Changed `.project-header` mobile behavior from `flex-direction: column` to `flex-wrap: wrap`. Title wrapper also wraps. This keeps the header compact instead of consuming the full viewport.
+  - Added `border-bottom` to `.project-header` for visual separation from card body.
+  - Removed `position: sticky; bottom: 0;` from `.closed-projects-header` to prevent overlap with project cards on mobile.
+
+**What you should see:**
+- Version badge: `v0.3.9`
+- Service worker cache: `pml-260422-1447`
+- Phone layout: single column project cards, compact card headers with a subtle border, no overlapping closed-projects bar.
 
 ---
 
