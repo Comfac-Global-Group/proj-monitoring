@@ -63,7 +63,7 @@
                     </select>
                     <input type="date" id="filter-date-from" class="filter-date" title="Due from">
                     <input type="date" id="filter-date-to" class="filter-date" title="Due to">
-                    <input type="text" id="filter-owner" placeholder="Filter by owner" class="filter-input" style="max-width: 140px;">
+                    <input type="text" id="filter-owner" placeholder="Filter by owner" class="filter-input">
                     <select id="sort-select" class="filter-select">
                         <option value="default">Sort: Default</option>
                         <option value="due_date">Due Date</option>
@@ -95,6 +95,35 @@
                     <button class="btn btn-secondary" id="save-as-btn">Save As (.json)</button>
                     <button class="btn btn-secondary" id="import-btn">Import Data</button>
                     <input type="file" id="import-file" accept=".json" hidden>
+                </div>
+                <div class="settings-section">
+                    <h3>Appearance</h3>
+                    <div class="form-group">
+                        <label for="theme-select">Theme</label>
+                        <select id="theme-select">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="system">System default</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="font-size-select">Font Size</label>
+                        <select id="font-size-select">
+                            <option value="small">Small</option>
+                            <option value="medium">Medium</option>
+                            <option value="large">Large</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Accent Color</label>
+                        <div class="accent-swatches" id="accent-swatches">
+                            <button class="accent-swatch active" data-color="#4361ee" style="background:#4361ee" aria-label="Blue"></button>
+                            <button class="accent-swatch" data-color="#e63946" style="background:#e63946" aria-label="Red"></button>
+                            <button class="accent-swatch" data-color="#2a9d8f" style="background:#2a9d8f" aria-label="Teal"></button>
+                            <button class="accent-swatch" data-color="#f4a261" style="background:#f4a261" aria-label="Orange"></button>
+                            <button class="accent-swatch" data-color="#9b5de5" style="background:#9b5de5" aria-label="Purple"></button>
+                        </div>
+                    </div>
                 </div>
                 <div class="settings-section">
                     <h3>Cloud Sync</h3>

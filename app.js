@@ -118,6 +118,11 @@ const saveCloudBtn = document.getElementById('save-cloud-btn');
 const syncNowBtn = document.getElementById('sync-now-btn');
 const pullNowBtn = document.getElementById('pull-now-btn');
 
+// Appearance controls
+const themeSelect = document.getElementById('theme-select');
+const fontSizeSelect = document.getElementById('font-size-select');
+const accentSwatches = document.getElementById('accent-swatches');
+
 // Changelog
 const changelogProjectSelect = document.getElementById('changelog-project-select');
 const changelogList = document.getElementById('changelog-list');
@@ -156,6 +161,52 @@ function initTheme() {
     const theme = savedTheme === 'system' ? (prefersDark ? 'dark' : 'light') : savedTheme;
     document.documentElement.setAttribute('data-theme', theme);
     updateThemeToggleIcon(theme);
+}
+
+function initAppearance() {
+    const settings = store.getSettings();
+
+    // Theme
+    const savedTheme = settings.theme || 'light';
+    if (themeSelect) themeSelect.value = savedTheme;
+    initTheme();
+
+    // Font size
+    const savedFontSize = settings.fontSize || 'medium';
+    if (fontSizeSelect) fontSizeSelect.value = savedFontSize;
+    document.documentElement.setAttribute('data-font-size', savedFontSize);
+
+    // Accent color
+    const savedAccent = settings.accentColor || '#4361ee';
+    updateAccentColor(savedAccent, false);
+}
+
+function updateAccentColor(color, save = true) {
+    document.documentElement.style.setProperty('--accent-color', color);
+    document.documentElement.style.setProperty('--theme-color', color);
+    // Compute a darker hover variant
+    const hoverColor = adjustColorBrightness(color, -20);
+    document.documentElement.style.setProperty('--accent-hover', hoverColor);
+
+    // Update active swatch UI
+    if (accentSwatches) {
+        accentSwatches.querySelectorAll('.accent-swatch').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-color') === color);
+        });
+    }
+
+    if (save) {
+        store.updateSettings({ accentColor: color });
+    }
+}
+
+function adjustColorBrightness(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+    const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
+    const B = Math.min(255, Math.max(0, (num & 0x00FF) + amt));
+    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
 function toggleTheme() {
@@ -1340,13 +1391,37 @@ function toggleCollapseAll() {
 // Event Listeners
 // ------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
+    initAppearance();
     initLayout();
     initAuth();
 
     loginForm.addEventListener('submit', handleLogin);
     themeToggle.addEventListener('click', toggleTheme);
     layoutToggle.addEventListener('click', toggleLayout);
+
+    // Appearance controls
+    if (themeSelect) {
+        themeSelect.addEventListener('change', () => {
+            const value = themeSelect.value;
+            store.updateSettings({ theme: value });
+            initTheme();
+        });
+    }
+    if (fontSizeSelect) {
+        fontSizeSelect.addEventListener('change', () => {
+            const value = fontSizeSelect.value;
+            document.documentElement.setAttribute('data-font-size', value);
+            store.updateSettings({ fontSize: value });
+        });
+    }
+    if (accentSwatches) {
+        accentSwatches.addEventListener('click', (e) => {
+            const swatch = e.target.closest('.accent-swatch');
+            if (!swatch) return;
+            const color = swatch.getAttribute('data-color');
+            updateAccentColor(color);
+        });
+    }
     settingsToggle.addEventListener('click', openSettings);
     settingsClose.addEventListener('click', closeSettings);
     addProjectBtn.addEventListener('click', () => openProjectModal());

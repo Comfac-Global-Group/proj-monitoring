@@ -298,6 +298,8 @@ class Store {
             ],
             settings: {
                 theme: 'light',
+                fontSize: 'medium',
+                accentColor: '#4361ee',
                 layout: 'desktop',
                 cloudProvider: 'none',
                 cloudConfig: {},
