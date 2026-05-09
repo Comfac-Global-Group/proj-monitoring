@@ -6,13 +6,49 @@
 
 ---
 
+## Field Testing Report | 260509 | RESOLVED in v0.4.0
+
+**Date:** 2026-05-09  
+**Reporter:** Justin Aquino  
+**Device:** Phone (mobile browser / PWA installed)  
+**Issues Found:**
+
+1. **Browser console/DevTools overlaps Export and Save buttons** — When the browser developer console is open on a phone (e.g., for running `store.addUser()` as documented in qa.md), the console panel takes up the lower portion of the viewport. The Settings panel's Export and Save As buttons become inaccessible because the reduced viewport makes them scroll below the visible area or land behind the DevTools panel. The user cannot test export/download functionality while the console is open.
+
+2. **Updated version (v0.3.9) not visible on phone** — The service worker is serving cached files from a previous version. The v0.3.9 mobile layout fixes are not rendering. The version badge does not show `v0.3.9`. The PWA standalone mode (no browser chrome) gives no easy way to force a reload.
+
+3. **Settings panel and other views not opening** — The Settings panel and potentially other modal views are not rendering or not responding to button taps on the phone. If the service worker is serving an old `app.js` while `index.html` has been updated, event listeners may be mismatched (split-brain cache state).
+
+**See:** Q-035, Q-036, Q-037 in `qa.md` for full RCA.
+
+---
+
 ## Current Version
 
-**v0.3.9** — `260422-1447` — Agent: Kimi Code CLI — **DONE**
+**v0.4.0** — `260509-0000` — Agent: Claude Code CLI — **DONE**
 
 ---
 
 ## Version History
+
+### v0.4.0 | 260509-0000 | DONE
+**Agent:** Claude Code CLI  
+**Changes:**
+- **Q-037 fix — CSS regression (critical):** The second `@media (max-width: 768px)` block in `styles.css` (line 1113) was overriding the v0.3.9 fix with `flex-direction: column` on `.project-header`, reverting the card header to full-viewport-height stacking. Changed to `flex-wrap: wrap` and updated `.project-title-wrapper` (uses `flex: 1 1 auto` instead of `width: 100%`) and `.project-status-toggle` (uses `margin-left: auto; flex-shrink: 0` so it aligns right in the same row) to match the v0.3.9 compact-header intent.
+- **Q-035 fix — Settings panel safe-area padding:** Added `height: 100dvh` (dynamic viewport height, avoids browser toolbar overlap) and `padding-bottom: max(20px, env(safe-area-inset-bottom))` to `.settings-content` on mobile. Prevents Export/Save buttons from being hidden behind the system navigation bar or browser chrome.
+- **Q-036 fix — Service worker auto-reload on update:** Added `controllerchange` listener in `app.js`. When the new SW activates and claims clients, the page auto-reloads — no "Reload" button tap required. Guard flag (`reloading`) prevents double-reload loops.
+- **Q-036 fix — Update notification moved to bottom banner:** `showUpdateNotification()` now renders a full-width bottom banner (`position: fixed; bottom: 0`) with safe-area padding. Replaces the old `top: 20px; right: 20px` toast that was easy to miss on narrow phones. Deduplication guard (`id="update-banner"`) prevents multiple banners.
+
+**What you should see:**
+- Version badge: `v0.4.0`
+- Service worker cache: `pml-260509-0000`
+- Phone layout: project card header is compact (title + badges on one line, status toggle on the right), does NOT stack into a full-viewport-height column.
+- Settings panel: fully scrollable on phone; bottom buttons not hidden behind navigation bar.
+- When a new version is deployed, the page auto-reloads silently after the new SW installs. If for some reason the auto-reload doesn't fire, a bottom banner appears.
+
+---
+
+### v0.3.9 | 260422-1447 | DONE
 
 ### v0.3.9 | 260422-1447 | DONE
 **Agent:** Kimi Code CLI  

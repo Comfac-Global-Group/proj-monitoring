@@ -132,10 +132,17 @@ const exportChangelogBtn = document.getElementById('export-changelog-btn');
 // Service Worker Registration
 // ------------------------------------------------------------
 if ('serviceWorker' in navigator) {
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!reloading) {
+            reloading = true;
+            window.location.reload();
+        }
+    });
+
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
             .then(registration => {
-                console.log('Service Worker registered:', registration);
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
                     newWorker.addEventListener('statechange', () => {
@@ -1345,32 +1352,35 @@ function checkStorageWarning() {
 }
 
 function showUpdateNotification(newWorker) {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
+    if (document.getElementById('update-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'update-banner';
+    banner.style.cssText = `
         position: fixed;
-        top: 20px;
-        right: 20px;
+        bottom: 0;
+        left: 0;
+        right: 0;
         background: var(--accent-color);
         color: white;
-        padding: 16px 20px;
-        border-radius: var(--radius);
+        padding: 14px 20px;
+        padding-bottom: max(14px, env(safe-area-inset-bottom));
         z-index: 9999;
-        box-shadow: var(--shadow-lg);
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.2);
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 12px;
+        font-size: 0.9rem;
     `;
-    notification.innerHTML = `
-        <span>New version available.</span>
-        <button class="btn btn-small" style="background: white; color: var(--accent-color); border: none;">Reload</button>
+    banner.innerHTML = `
+        <span>New version available. Reload to update.</span>
+        <button style="background: white; color: var(--accent-color); border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; min-height: 36px;">Reload</button>
     `;
-    notification.querySelector('button').addEventListener('click', () => {
-        if (newWorker && newWorker.state === 'installed') {
-            newWorker.postMessage({ type: 'SKIP_WAITING' });
-        }
+    banner.querySelector('button').addEventListener('click', () => {
+        if (newWorker) newWorker.postMessage({ type: 'SKIP_WAITING' });
         window.location.reload();
     });
-    document.body.appendChild(notification);
+    document.body.appendChild(banner);
 }
 function toggleCollapseAll() {
     const projects = store.getProjects();

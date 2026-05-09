@@ -1111,14 +1111,15 @@ body {
     }
 
     .project-header {
-        flex-direction: column;
+        flex-wrap: wrap;
         align-items: flex-start;
-        gap: 10px;
+        gap: 8px;
     }
     .project-title-wrapper {
         flex-wrap: wrap;
         gap: 6px;
-        width: 100%;
+        flex: 1 1 auto;
+        min-width: 0;
     }
     .project-title {
         font-size: 1rem;
@@ -1127,9 +1128,8 @@ body {
         min-width: 0;
     }
     .project-status-toggle {
-        margin-left: 0;
-        width: 100%;
-        justify-content: space-between;
+        flex-shrink: 0;
+        margin-left: auto;
     }
 
     .action-item {
@@ -1158,6 +1158,11 @@ body {
 
     .settings-panel {
         max-width: 100%;
+        height: 100dvh;
+    }
+
+    .settings-content {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
     }
 
     .btn,
